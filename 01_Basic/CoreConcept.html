@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LangChain 1.2 — Core Concepts</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --surface: #12161f;
+      --surface2: #1a2030;
+      --border: #1f2b40;
+      --accent: #3b82f6;
+      --accent2: #06b6d4;
+      --accent3: #8b5cf6;
+      --green: #10b981;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --orange: #f97316;
+      --pink: #ec4899;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --code-bg: #0d1117;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      line-height: 1.75;
+    }
+
+    /* NAV */
+    .toc {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 40px;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .toc-label { color: var(--muted); font-size: 11px; font-family: 'JetBrains Mono', monospace; margin-right: 8px; }
+    .toc a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 4px 10px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      transition: all 0.15s;
+    }
+    .toc a:hover { color: var(--accent2); border-color: var(--accent2); background: rgba(6,182,212,0.07); }
+
+    /* HERO */
+    .hero {
+      background: linear-gradient(135deg, #0b0e14 0%, #0f172a 60%, #0b1120 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 56px 40px 46px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; top: -100px; right: -60px;
+      width: 450px; height: 450px;
+      background: radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero::after {
+      content: '';
+      position: absolute; bottom: -80px; left: 30%;
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(6,182,212,0.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-block;
+      background: rgba(139,92,246,0.15);
+      border: 1px solid rgba(139,92,246,0.3);
+      color: var(--accent3);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 4px;
+      margin-bottom: 18px;
+    }
+    .hero h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 800;
+      line-height: 1.1;
+      background: linear-gradient(135deg, #e2e8f0 0%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 14px;
+    }
+    .hero h1 span {
+      background: linear-gradient(135deg, var(--accent3) 0%, var(--accent2) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p { color: var(--muted); max-width: 620px; font-size: 15px; font-weight: 300; }
+    .concept-pills {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px;
+    }
+    .pill {
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid;
+    }
+    .pill-blue { background: rgba(59,130,246,0.1); color: #93c5fd; border-color: rgba(59,130,246,0.25); }
+    .pill-purple { background: rgba(139,92,246,0.1); color: #c4b5fd; border-color: rgba(139,92,246,0.25); }
+    .pill-cyan { background: rgba(6,182,212,0.1); color: #67e8f9; border-color: rgba(6,182,212,0.25); }
+    .pill-green { background: rgba(16,185,129,0.1); color: #6ee7b7; border-color: rgba(16,185,129,0.25); }
+    .pill-orange { background: rgba(249,115,22,0.1); color: #fdba74; border-color: rgba(249,115,22,0.25); }
+
+    /* LAYOUT */
+    .container { max-width: 920px; margin: 0 auto; padding: 50px 30px; display: flex; flex-direction: column; gap: 70px; }
+
+    /* SECTION */
+    .section-header { margin-bottom: 24px; }
+    .section-label-row { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+    .section-num {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      padding: 3px 9px; border-radius: 4px; letter-spacing: 1px;
+    }
+    .num-blue { background: rgba(59,130,246,0.1); color: var(--accent); border: 1px solid rgba(59,130,246,0.25); }
+    .num-purple { background: rgba(139,92,246,0.1); color: var(--accent3); border: 1px solid rgba(139,92,246,0.25); }
+    .num-cyan { background: rgba(6,182,212,0.1); color: var(--accent2); border: 1px solid rgba(6,182,212,0.25); }
+    .num-green { background: rgba(16,185,129,0.1); color: var(--green); border: 1px solid rgba(16,185,129,0.25); }
+    .section-title { font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 700; color: #f1f5f9; }
+    .section-sub { color: var(--muted); font-size: 14px; }
+
+    /* CARDS */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px 26px; margin-bottom: 14px; }
+    .card h3 { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; color: #f1f5f9; margin-bottom: 10px; }
+    .card p, .card li { color: #94a3b8; font-size: 14px; }
+
+    /* MODEL GRID */
+    .model-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    @media (max-width: 640px) { .model-grid { grid-template-columns: 1fr; } }
+    .model-card {
+      border-radius: 12px;
+      padding: 22px 20px;
+      border: 1px solid;
+      position: relative;
+      overflow: hidden;
+    }
+    .model-card::before {
+      content: '';
+      position: absolute; top: -30px; right: -30px;
+      width: 100px; height: 100px;
+      border-radius: 50%;
+      opacity: 0.12;
+    }
+    .mc-llm { background: rgba(59,130,246,0.05); border-color: rgba(59,130,246,0.2); }
+    .mc-llm::before { background: var(--accent); }
+    .mc-chat { background: rgba(139,92,246,0.05); border-color: rgba(139,92,246,0.2); }
+    .mc-chat::before { background: var(--accent3); }
+    .mc-embed { background: rgba(6,182,212,0.05); border-color: rgba(6,182,212,0.2); }
+    .mc-embed::before { background: var(--accent2); }
+    .model-icon { font-size: 24px; margin-bottom: 10px; }
+    .model-card h4 { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: #f1f5f9; margin-bottom: 6px; }
+    .model-card .class-name { font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-bottom: 10px; padding: 2px 7px; border-radius: 4px; display: inline-block; }
+    .cn-blue { background: rgba(59,130,246,0.15); color: #93c5fd; }
+    .cn-purple { background: rgba(139,92,246,0.15); color: #c4b5fd; }
+    .cn-cyan { background: rgba(6,182,212,0.15); color: #67e8f9; }
+    .model-card p { color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .model-in-out { display: flex; gap: 8px; margin-top: 12px; font-size: 11px; font-family: 'JetBrains Mono', monospace; }
+    .in-badge, .out-badge { padding: 2px 8px; border-radius: 4px; }
+    .in-badge { background: rgba(100,116,139,0.15); color: var(--muted); border: 1px solid var(--border); }
+    .out-badge { background: rgba(16,185,129,0.12); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.2); }
+
+    /* HIGHLIGHT BOXES */
+    .highlight {
+      background: linear-gradient(135deg, rgba(59,130,246,0.07), rgba(6,182,212,0.04));
+      border: 1px solid rgba(59,130,246,0.2);
+      border-left: 3px solid var(--accent);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin: 14px 0;
+      color: #94a3b8;
+      font-size: 14px;
+    }
+    .highlight strong { color: var(--accent2); }
+    .highlight-purple {
+      background: rgba(139,92,246,0.07);
+      border: 1px solid rgba(139,92,246,0.2);
+      border-left: 3px solid var(--accent3);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin: 14px 0;
+      color: #94a3b8;
+      font-size: 14px;
+    }
+    .highlight-purple strong { color: #c4b5fd; }
+    .warn {
+      background: rgba(245,158,11,0.07);
+      border: 1px solid rgba(245,158,11,0.2);
+      border-left: 3px solid var(--yellow);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin: 14px 0;
+      color: #94a3b8;
+      font-size: 14px;
+    }
+    .warn strong { color: var(--yellow); }
+    .success {
+      background: rgba(16,185,129,0.07);
+      border: 1px solid rgba(16,185,129,0.2);
+      border-left: 3px solid var(--green);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin: 14px 0;
+      color: #94a3b8;
+      font-size: 14px;
+    }
+    .success strong { color: var(--green); }
+
+    /* CODE */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 22px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.75;
+      margin: 14px 0;
+    }
+    .kw { color: #c792ea; }
+    .fn { color: #82aaff; }
+    .str { color: #c3e88d; }
+    .cm { color: #546e7a; font-style: italic; }
+    .var { color: #f07178; }
+    .num { color: #f78c6c; }
+    .cls { color: #ffcb6b; }
+    .op { color: #89ddff; }
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(255,255,255,0.07);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #c3e88d;
+    }
+
+    /* PROMPT TYPES GRID */
+    .prompt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 600px) { .prompt-grid { grid-template-columns: 1fr; } }
+    .prompt-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .prompt-card h4 { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent3); margin-bottom: 8px; }
+    .prompt-card p { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+    .use-when { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--green); background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); padding: 3px 8px; border-radius: 4px; display: inline-block; }
+
+    /* PARSER TABLE */
+    .table-wrap { overflow-x: auto; margin: 16px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 500px; }
+    th { background: var(--surface2); color: var(--accent2); font-family: 'Syne', sans-serif; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+    td { padding: 12px 16px; border-bottom: 1px solid rgba(31,43,64,0.5); color: #94a3b8; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.015); }
+
+    /* MESSAGE TYPES */
+    .msg-demo { background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px 22px; margin: 14px 0; }
+    .msg-row { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+    .msg-row:last-child { margin-bottom: 0; }
+    .msg-role {
+      flex-shrink: 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      min-width: 80px;
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+    .role-system { background: rgba(249,115,22,0.15); color: #fdba74; border: 1px solid rgba(249,115,22,0.25); }
+    .role-human { background: rgba(59,130,246,0.15); color: #93c5fd; border: 1px solid rgba(59,130,246,0.25); }
+    .role-ai { background: rgba(139,92,246,0.15); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.25); }
+    .msg-text { font-size: 13px; color: #94a3b8; font-family: 'JetBrains Mono', monospace; line-height: 1.6; }
+
+    /* FLOW DIAGRAM */
+    .flow-chain {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 22px;
+      margin: 14px 0;
+    }
+    .flow-box {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 500;
+    }
+    .fb-prompt { background: rgba(139,92,246,0.15); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.3); }
+    .fb-model { background: rgba(59,130,246,0.15); color: #93c5fd; border: 1px solid rgba(59,130,246,0.3); }
+    .fb-parser { background: rgba(16,185,129,0.15); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.3); }
+    .fb-input { background: rgba(100,116,139,0.1); color: var(--muted); border: 1px solid var(--border); }
+    .fb-output { background: rgba(249,115,22,0.12); color: #fdba74; border: 1px solid rgba(249,115,22,0.25); }
+    .pipe { color: var(--accent2); font-size: 20px; font-weight: 700; }
+
+    /* SUMMARY TABLE */
+    .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 600px) { .summary-grid { grid-template-columns: 1fr; } }
+    .summary-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+    }
+    .summary-card h4 { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; color: #f1f5f9; margin-bottom: 10px; }
+    .summary-card ul { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+    .summary-card li { font-size: 12.5px; color: var(--muted); display: flex; gap: 7px; }
+    .summary-card li::before { content: '→'; color: var(--accent2); flex-shrink: 0; }
+
+    hr { border: none; border-top: 1px solid var(--border); }
+    footer { text-align: center; padding: 30px; color: var(--muted); font-size: 12px; font-family: 'JetBrains Mono', monospace; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="toc">
+  <span class="toc-label">JUMP TO →</span>
+  <a href="#models">Models</a>
+  <a href="#prompts">Prompts</a>
+  <a href="#messages">Messages</a>
+  <a href="#parsers">Output Parsers</a>
+  <a href="#together">Putting It Together</a>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">Phase 1 · Section 1.2</div>
+  <h1>LangChain<br/><span>Core Concepts</span></h1>
+  <p>The four building blocks every LangChain application is made from — models, prompts, messages, and output parsers.</p>
+  <div class="concept-pills">
+    <span class="pill pill-blue">LLMs</span>
+    <span class="pill pill-blue">Chat Models</span>
+    <span class="pill pill-cyan">Embeddings</span>
+    <span class="pill pill-purple">PromptTemplate</span>
+    <span class="pill pill-purple">ChatPromptTemplate</span>
+    <span class="pill pill-purple">MessagesPlaceholder</span>
+    <span class="pill pill-orange">HumanMessage</span>
+    <span class="pill pill-orange">SystemMessage</span>
+    <span class="pill pill-orange">AIMessage</span>
+    <span class="pill pill-green">StrOutputParser</span>
+    <span class="pill pill-green">JsonOutputParser</span>
+    <span class="pill pill-green">PydanticOutputParser</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SECTION 1: MODELS                                  -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <section id="models">
+    <div class="section-header">
+      <div class="section-label-row">
+        <span class="section-num num-blue">01</span>
+        <h2 class="section-title">Models</h2>
+      </div>
+      <p class="section-sub">LLMs vs Chat Models vs Embedding Models — and why the distinction matters</p>
+    </div>
+
+    <p style="color:#94a3b8; margin-bottom:20px;">
+      LangChain has three distinct model types. Picking the wrong one for your use case is one of the most common beginner mistakes.
+    </p>
+
+    <div class="model-grid">
+      <div class="model-card mc-llm">
+        <div class="model-icon">📝</div>
+        <h4>LLM (Text-in / Text-out)</h4>
+        <span class="class-name cn-blue">from langchain_openai import OpenAI</span>
+        <p>Older interface. Takes a raw string, returns a raw string. Completion-style models (like <code>gpt-3.5-turbo-instruct</code>). Rarely used in new code.</p>
+        <div class="model-in-out">
+          <span class="in-badge">IN: string</span>
+          <span class="out-badge">OUT: string</span>
+        </div>
+      </div>
+      <div class="model-card mc-chat">
+        <div class="model-icon">💬</div>
+        <h4>Chat Model (Messages-in / Message-out)</h4>
+        <span class="class-name cn-purple">from langchain_openai import ChatOpenAI</span>
+        <p>Modern standard. Takes a list of <em>messages</em>, returns a message. All current frontier models (GPT-4o, Claude, Gemini) use this interface.</p>
+        <div class="model-in-out">
+          <span class="in-badge">IN: [Message]</span>
+          <span class="out-badge">OUT: AIMessage</span>
+        </div>
+      </div>
+      <div class="model-card mc-embed">
+        <div class="model-icon">🧮</div>
+        <h4>Embedding Model (Text-in / Vector-out)</h4>
+        <span class="class-name cn-cyan">from langchain_openai import OpenAIEmbeddings</span>
+        <p>Converts text into a numeric vector. Not used for generation — used for semantic search and RAG. Completely different API.</p>
+        <div class="model-in-out">
+          <span class="in-badge">IN: string</span>
+          <span class="out-badge">OUT: [float]</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="highlight">
+      <strong>Rule of thumb:</strong> In 2025+, always use <code>ChatOpenAI</code> not <code>OpenAI</code>. The Chat Model interface is the standard for all modern models. Use <code>OpenAIEmbeddings</code> separately only when building RAG pipelines.
+    </div>
+
+<pre><span class="kw">from</span> langchain_openai <span class="kw">import</span> <span class="cls">ChatOpenAI</span>, <span class="cls">OpenAIEmbeddings</span>
+
+<span class="cm"># ── Chat Model ──────────────────────────────────────────</span>
+llm = <span class="cls">ChatOpenAI</span>(
+    model=<span class="str">"gpt-4o-mini"</span>,   <span class="cm"># cheaper + faster than gpt-4o for most tasks</span>
+    temperature=<span class="num">0.7</span>,       <span class="cm"># 0 = deterministic, 1 = creative</span>
+    max_tokens=<span class="num">1000</span>
+)
+
+<span class="cm"># .invoke() → synchronous, returns AIMessage</span>
+response = llm.invoke(<span class="str">"What is the capital of France?"</span>)
+<span class="fn">print</span>(response.content)         <span class="cm"># "Paris"</span>
+<span class="fn">print</span>(response.usage_metadata)  <span class="cm"># token counts</span>
+
+<span class="cm"># .stream() → yields chunks in real-time</span>
+<span class="kw">for</span> chunk <span class="kw">in</span> llm.stream(<span class="str">"Tell me a joke"</span>):
+    <span class="fn">print</span>(chunk.content, end=<span class="str">""</span>, flush=<span class="op">True</span>)
+
+<span class="cm"># ── Embedding Model ─────────────────────────────────────</span>
+embedder = <span class="cls">OpenAIEmbeddings</span>(model=<span class="str">"text-embedding-3-small"</span>)
+
+vector = embedder.embed_query(<span class="str">"What is LangChain?"</span>)
+<span class="fn">print</span>(<span class="fn">len</span>(vector))  <span class="cm"># 1536 — a list of floats</span>
+
+docs = embedder.embed_documents([<span class="str">"doc one"</span>, <span class="str">"doc two"</span>])
+<span class="fn">print</span>(<span class="fn">len</span>(docs))    <span class="cm"># 2 vectors</span></pre>
+
+    <div class="warn">
+      <strong>⚠️ Critical distinction:</strong> Embedding models do <em>not</em> generate text. <code>embed_query()</code> returns a list of numbers (a vector). You cannot use an embedding model where a chat model is expected. They serve entirely different purposes.
+    </div>
+
+    <div class="card">
+      <h3>🔄 Switching Models is Easy</h3>
+      <p>Because all Chat Models implement the same <code>Runnable</code> interface, you can swap providers with one line. This is one of LangChain's biggest advantages over raw API calls.</p>
+    </div>
+
+<pre><span class="cm"># Swap providers — rest of your code stays identical</span>
+<span class="kw">from</span> langchain_anthropic <span class="kw">import</span> <span class="cls">ChatAnthropic</span>
+<span class="kw">from</span> langchain_google_genai <span class="kw">import</span> <span class="cls">ChatGoogleGenerativeAI</span>
+
+llm = <span class="cls">ChatAnthropic</span>(model=<span class="str">"claude-3-5-sonnet-20241022"</span>)
+llm = <span class="cls">ChatGoogleGenerativeAI</span>(model=<span class="str">"gemini-2.0-flash"</span>)
+<span class="cm"># same .invoke(), .stream(), .batch() — no other changes needed</span></pre>
+  </section>
+
+  <hr/>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SECTION 2: MESSAGES                                -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <section id="messages">
+    <div class="section-header">
+      <div class="section-label-row">
+        <span class="section-num num-cyan">02</span>
+        <h2 class="section-title">Messages</h2>
+      </div>
+      <p class="section-sub">HumanMessage · AIMessage · SystemMessage — the vocabulary of Chat Models</p>
+    </div>
+
+    <p style="color:#94a3b8; margin-bottom:18px;">
+      Chat Models don't take plain strings — they take a structured list of messages. Each message has a <strong>role</strong> and <strong>content</strong>. Understanding this is fundamental to everything in LangChain.
+    </p>
+
+    <div class="msg-demo">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); margin-bottom:14px; letter-spacing:1px;">CONVERSATION STRUCTURE</div>
+      <div class="msg-row">
+        <span class="msg-role role-system">SYSTEM</span>
+        <span class="msg-text">You are a helpful assistant that always responds in bullet points.</span>
+      </div>
+      <div class="msg-row">
+        <span class="msg-role role-human">HUMAN</span>
+        <span class="msg-text">What are the benefits of exercise?</span>
+      </div>
+      <div class="msg-row">
+        <span class="msg-role role-ai">AI</span>
+        <span class="msg-text">• Improves cardiovascular health<br/>• Reduces stress and anxiety<br/>• Strengthens muscles and bones</span>
+      </div>
+      <div class="msg-row">
+        <span class="msg-role role-human">HUMAN</span>
+        <span class="msg-text">How often should I exercise?</span>
+      </div>
+    </div>
+
+    <div class="highlight-purple">
+      <strong>The System message is special:</strong> It sets the <em>context and behavior</em> of the AI for the entire conversation. It's not part of the back-and-forth — it's an instruction that shapes how the model responds to everything else.
+    </div>
+
+<pre><span class="kw">from</span> langchain_core.messages <span class="kw">import</span> <span class="cls">HumanMessage</span>, <span class="cls">AIMessage</span>, <span class="cls">SystemMessage</span>
+<span class="kw">from</span> langchain_openai <span class="kw">import</span> <span class="cls">ChatOpenAI</span>
+
+llm = <span class="cls">ChatOpenAI</span>(model=<span class="str">"gpt-4o-mini"</span>)
+
+<span class="cm"># Manually building a conversation history</span>
+messages = [
+    <span class="cls">SystemMessage</span>(content=<span class="str">"You are a concise assistant. Reply in 1 sentence."</span>),
+    <span class="cls">HumanMessage</span>(content=<span class="str">"What is machine learning?"</span>),
+    <span class="cls">AIMessage</span>(content=<span class="str">"Machine learning is a field where algorithms learn patterns from data."</span>),
+    <span class="cls">HumanMessage</span>(content=<span class="str">"Give me an example."</span>),
+]
+
+response = llm.invoke(messages)
+<span class="fn">print</span>(response.content)
+<span class="fn">print</span>(<span class="fn">type</span>(response))   <span class="cm"># AIMessage</span></pre>
+
+    <div class="card">
+      <h3>📋 Message Types Reference</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Class</th><th>Role</th><th>When to Use</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>SystemMessage</code></td>
+              <td><code>"system"</code></td>
+              <td>Set AI's persona, rules, or context. Comes first. Only one per conversation typically.</td>
+            </tr>
+            <tr>
+              <td><code>HumanMessage</code></td>
+              <td><code>"user"</code></td>
+              <td>What the user says. Every user turn.</td>
+            </tr>
+            <tr>
+              <td><code>AIMessage</code></td>
+              <td><code>"assistant"</code></td>
+              <td>What the AI responded. Used to inject conversation history for multi-turn chats.</td>
+            </tr>
+            <tr>
+              <td><code>ToolMessage</code></td>
+              <td><code>"tool"</code></td>
+              <td>Result returned by a tool call. Used in agentic workflows.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="success">
+      <strong>💡 Why manually build message lists?</strong> For multi-turn conversations, you pass the <em>entire history</em> on every call — LLMs are stateless. <code>AIMessage</code> objects let you inject past turns so the model has context. Later you'll automate this with LangChain memory.
+    </div>
+  </section>
+
+  <hr/>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SECTION 3: PROMPTS                                 -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <section id="prompts">
+    <div class="section-header">
+      <div class="section-label-row">
+        <span class="section-num num-purple">03</span>
+        <h2 class="section-title">Prompts</h2>
+      </div>
+      <p class="section-sub">PromptTemplate · ChatPromptTemplate · MessagesPlaceholder</p>
+    </div>
+
+    <p style="color:#94a3b8; margin-bottom:18px;">
+      Instead of manually building message lists every time, LangChain gives you <strong>templates</strong> — reusable, parameterized blueprints for prompts. Think of them like Python f-strings, but for LLM inputs.
+    </p>
+
+    <div class="prompt-grid">
+      <div class="prompt-card">
+        <h4>PromptTemplate</h4>
+        <p>For raw string LLMs. Takes a plain string with <code>{variable}</code> placeholders. Rarely used with modern models.</p>
+        <span class="use-when">USE: legacy LLM interface</span>
+      </div>
+      <div class="prompt-card">
+        <h4>ChatPromptTemplate</h4>
+        <p>For Chat Models. Builds a list of messages from a template. The one you'll use 95% of the time.</p>
+        <span class="use-when">USE: all modern chat apps</span>
+      </div>
+      <div class="prompt-card">
+        <h4>MessagesPlaceholder</h4>
+        <p>A slot inside a <code>ChatPromptTemplate</code> where you inject a dynamic list of messages — like chat history.</p>
+        <span class="use-when">USE: multi-turn, agents</span>
+      </div>
+      <div class="prompt-card">
+        <h4>FewShotPromptTemplate</h4>
+        <p>Injects example input/output pairs to guide model behavior. Powerful for classification and formatting tasks.</p>
+        <span class="use-when">USE: few-shot examples</span>
+      </div>
+    </div>
+
+<pre><span class="kw">from</span> langchain_core.prompts <span class="kw">import</span> <span class="cls">ChatPromptTemplate</span>, <span class="cls">MessagesPlaceholder</span>
+
+<span class="cm"># ── Basic ChatPromptTemplate ─────────────────────────────</span>
+prompt = <span class="cls">ChatPromptTemplate</span>.from_messages([
+    (<span class="str">"system"</span>, <span class="str">"You are an expert in {subject}. Be concise."</span>),
+    (<span class="str">"human"</span>, <span class="str">"{question}"</span>),
+])
+
+<span class="cm"># .invoke() fills the variables → returns a list of messages</span>
+messages = prompt.invoke({
+    <span class="str">"subject"</span>: <span class="str">"Python programming"</span>,
+    <span class="str">"question"</span>: <span class="str">"What is a decorator?"</span>
+})
+<span class="fn">print</span>(messages)  <span class="cm"># [SystemMessage(...), HumanMessage(...)]</span>
+
+
+<span class="cm"># ── With MessagesPlaceholder (for chat history) ──────────</span>
+chat_prompt = <span class="cls">ChatPromptTemplate</span>.from_messages([
+    (<span class="str">"system"</span>, <span class="str">"You are a helpful assistant."</span>),
+    <span class="cls">MessagesPlaceholder</span>(variable_name=<span class="str">"history"</span>),  <span class="cm"># ← slot for past messages</span>
+    (<span class="str">"human"</span>, <span class="str">"{input}"</span>),
+])
+
+<span class="cm"># Pass actual message objects into the history slot</span>
+result = chat_prompt.invoke({
+    <span class="str">"history"</span>: [
+        <span class="cls">HumanMessage</span>(content=<span class="str">"My name is Alex."</span>),
+        <span class="cls">AIMessage</span>(content=<span class="str">"Nice to meet you, Alex!"</span>),
+    ],
+    <span class="str">"input"</span>: <span class="str">"What is my name?"</span>
+})</pre>
+
+    <div class="highlight-purple">
+      <strong>Key insight:</strong> <code>ChatPromptTemplate</code> is a <code>Runnable</code>. That means it has <code>.invoke()</code>, <code>.stream()</code>, and <code>.batch()</code> — and crucially, you can pipe it with <code>|</code> directly into a model. This is the heart of LCEL.
+    </div>
+
+<pre><span class="cm"># ── LCEL: snap the pieces together with | ───────────────</span>
+<span class="kw">from</span> langchain_openai <span class="kw">import</span> <span class="cls">ChatOpenAI</span>
+
+prompt = <span class="cls">ChatPromptTemplate</span>.from_messages([
+    (<span class="str">"system"</span>, <span class="str">"You are an expert chef."</span>),
+    (<span class="str">"human"</span>, <span class="str">"Give me a recipe for {dish}."</span>),
+])
+model = <span class="cls">ChatOpenAI</span>(model=<span class="str">"gpt-4o-mini"</span>)
+
+chain = prompt <span class="op">|</span> model  <span class="cm"># ← the | operator chains Runnables</span>
+response = chain.invoke({<span class="str">"dish"</span>: <span class="str">"pasta carbonara"</span>})
+<span class="fn">print</span>(response.content)</pre>
+  </section>
+
+  <hr/>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SECTION 4: OUTPUT PARSERS                          -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <section id="parsers">
+    <div class="section-header">
+      <div class="section-label-row">
+        <span class="section-num num-green">04</span>
+        <h2 class="section-title">Output Parsers</h2>
+      </div>
+      <p class="section-sub">StrOutputParser · JsonOutputParser · PydanticOutputParser</p>
+    </div>
+
+    <p style="color:#94a3b8; margin-bottom:18px;">
+      LLMs always return an <code>AIMessage</code> object. Output parsers transform that raw response into a more useful Python type — a string, a dict, or a typed Pydantic object.
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Parser</th><th>Output Type</th><th>Best For</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>StrOutputParser</code></td>
+            <td><code>str</code></td>
+            <td>Any time you just need the text. Extracts <code>.content</code> from the <code>AIMessage</code>. Start here.</td>
+          </tr>
+          <tr>
+            <td><code>JsonOutputParser</code></td>
+            <td><code>dict</code></td>
+            <td>When you need structured data. Parses JSON from model output. Works even if the JSON is wrapped in markdown code blocks.</td>
+          </tr>
+          <tr>
+            <td><code>PydanticOutputParser</code></td>
+            <td>Pydantic model instance</td>
+            <td>Strict typed output with validation. Auto-generates format instructions to inject into your prompt.</td>
+          </tr>
+          <tr>
+            <td><code>CommaSeparatedListOutputParser</code></td>
+            <td><code>list[str]</code></td>
+            <td>Quick lists. Splits on commas.</td>
+          </tr>
+          <tr>
+            <td><code>XMLOutputParser</code></td>
+            <td><code>dict</code></td>
+            <td>XML-structured outputs. Useful with Claude models.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+<pre><span class="kw">from</span> langchain_core.output_parsers <span class="kw">import</span> <span class="cls">StrOutputParser</span>, <span class="cls">JsonOutputParser</span>
+<span class="kw">from</span> langchain_core.prompts <span class="kw">import</span> <span class="cls">ChatPromptTemplate</span>
+<span class="kw">from</span> langchain_openai <span class="kw">import</span> <span class="cls">ChatOpenAI</span>
+
+model = <span class="cls">ChatOpenAI</span>(model=<span class="str">"gpt-4o-mini"</span>)
+
+<span class="cm"># ── StrOutputParser — most common ────────────────────────</span>
+chain = <span class="cls">ChatPromptTemplate</span>.from_messages([
+    (<span class="str">"human"</span>, <span class="str">"Summarize {topic} in one sentence."</span>)
+]) <span class="op">|</span> model <span class="op">|</span> <span class="cls">StrOutputParser</span>()
+
+result = chain.invoke({<span class="str">"topic"</span>: <span class="str">"quantum computing"</span>})
+<span class="fn">print</span>(<span class="fn">type</span>(result))   <span class="cm"># str  ← not AIMessage anymore</span>
+<span class="fn">print</span>(result)
+
+
+<span class="cm"># ── JsonOutputParser — structured data ──────────────────</span>
+json_chain = <span class="cls">ChatPromptTemplate</span>.from_messages([
+    (<span class="str">"system"</span>, <span class="str">"Always respond with valid JSON only."</span>),
+    (<span class="str">"human"</span>, <span class="str">"Give me info about {country}: name, capital, population."</span>),
+]) <span class="op">|</span> model <span class="op">|</span> <span class="cls">JsonOutputParser</span>()
+
+result = json_chain.invoke({<span class="str">"country"</span>: <span class="str">"Japan"</span>})
+<span class="fn">print</span>(<span class="fn">type</span>(result))      <span class="cm"># dict</span>
+<span class="fn">print</span>(result[<span class="str">"capital"</span>])  <span class="cm"># "Tokyo"</span></pre>
+
+<pre><span class="cm"># ── PydanticOutputParser — typed + validated ─────────────</span>
+<span class="kw">from</span> pydantic <span class="kw">import</span> <span class="cls">BaseModel</span>, <span class="cls">Field</span>
+<span class="kw">from</span> langchain_core.output_parsers <span class="kw">import</span> <span class="cls">PydanticOutputParser</span>
+
+<span class="cm"># Define the exact shape you want</span>
+<span class="kw">class</span> <span class="cls">Movie</span>(<span class="cls">BaseModel</span>):
+    title: <span class="fn">str</span> = <span class="cls">Field</span>(description=<span class="str">"Movie title"</span>)
+    year: <span class="fn">int</span> = <span class="cls">Field</span>(description=<span class="str">"Release year"</span>)
+    genre: <span class="fn">str</span> = <span class="cls">Field</span>(description=<span class="str">"Primary genre"</span>)
+    rating: <span class="fn">float</span> = <span class="cls">Field</span>(description=<span class="str">"Rating out of 10"</span>)
+
+parser = <span class="cls">PydanticOutputParser</span>(pydantic_object=<span class="cls">Movie</span>)
+
+<span class="cm"># The parser generates format instructions automatically</span>
+prompt = <span class="cls">ChatPromptTemplate</span>.from_messages([
+    (<span class="str">"system"</span>, <span class="str">"Extract movie info.\n{format_instructions}"</span>),
+    (<span class="str">"human"</span>, <span class="str">"{input}"</span>),
+]).partial(format_instructions=parser.get_format_instructions())
+
+chain = prompt <span class="op">|</span> model <span class="op">|</span> parser
+
+movie = chain.invoke({<span class="str">"input"</span>: <span class="str">"Tell me about Inception (2010)"</span>})
+<span class="fn">print</span>(<span class="fn">type</span>(movie))   <span class="cm"># Movie (Pydantic model instance)</span>
+<span class="fn">print</span>(movie.title)   <span class="cm"># "Inception"</span>
+<span class="fn">print</span>(movie.year)    <span class="cm"># 2010</span></pre>
+
+    <div class="warn">
+      <strong>⚠️ With PydanticOutputParser:</strong> Always call <code>parser.get_format_instructions()</code> and inject those into your prompt. The parser auto-generates instructions telling the model exactly what JSON schema to output — without this, parsing will often fail.
+    </div>
+  </section>
+
+  <hr/>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SECTION 5: PUTTING IT TOGETHER                     -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <section id="together">
+    <div class="section-header">
+      <div class="section-label-row">
+        <span class="section-num num-blue">05</span>
+        <h2 class="section-title">Putting It All Together</h2>
+      </div>
+      <p class="section-sub">How the four concepts connect in a real LCEL chain</p>
+    </div>
+
+    <p style="color:#94a3b8; margin-bottom:20px;">
+      These four concepts are not standalone — they're designed to snap together. Here's the full picture:
+    </p>
+
+    <div class="flow-chain">
+      <div class="flow-box fb-input">{"topic": "AI"}</div>
+      <div class="pipe">→</div>
+      <div class="flow-box fb-prompt">ChatPromptTemplate</div>
+      <div class="pipe">|</div>
+      <div class="flow-box fb-model">ChatOpenAI</div>
+      <div class="pipe">|</div>
+      <div class="flow-box fb-parser">StrOutputParser</div>
+      <div class="pipe">→</div>
+      <div class="flow-box fb-output">"AI is..."</div>
+    </div>
+
+<pre><span class="cm"># ── The Full Pattern ─────────────────────────────────────</span>
+<span class="kw">from</span> langchain_openai <span class="kw">import</span> <span class="cls">ChatOpenAI</span>
+<span class="kw">from</span> langchain_core.prompts <span class="kw">import</span> <span class="cls">ChatPromptTemplate</span>
+<span class="kw">from</span> langchain_core.output_parsers <span class="kw">import</span> <span class="cls">StrOutputParser</span>
+<span class="kw">from</span> dotenv <span class="kw">import</span> load_dotenv
+
+load_dotenv()
+
+<span class="cm"># 1. Prompt — defines structure</span>
+prompt = <span class="cls">ChatPromptTemplate</span>.from_messages([
+    (<span class="str">"system"</span>, <span class="str">"You are a {role}. Answer in under 3 sentences."</span>),
+    (<span class="str">"human"</span>, <span class="str">"{question}"</span>),
+])
+
+<span class="cm"># 2. Model — does the reasoning</span>
+model = <span class="cls">ChatOpenAI</span>(model=<span class="str">"gpt-4o-mini"</span>, temperature=<span class="num">0</span>)
+
+<span class="cm"># 3. Parser — shapes the output</span>
+parser = <span class="cls">StrOutputParser</span>()
+
+<span class="cm"># 4. Chain — connect with |</span>
+chain = prompt <span class="op">|</span> model <span class="op">|</span> parser
+
+<span class="cm"># 5. Invoke</span>
+answer = chain.invoke({
+    <span class="str">"role"</span>: <span class="str">"Python tutor"</span>,
+    <span class="str">"question"</span>: <span class="str">"What is a generator?"</span>
+})
+<span class="fn">print</span>(answer)  <span class="cm"># plain string</span>
+
+<span class="cm"># Or stream it</span>
+<span class="kw">for</span> chunk <span class="kw">in</span> chain.stream({<span class="str">"role"</span>: <span class="str">"chef"</span>, <span class="str">"question"</span>: <span class="str">"best pasta tips?"</span>}):
+    <span class="fn">print</span>(chunk, end=<span class="str">""</span>, flush=<span class="op">True</span>)</pre>
+
+    <div class="success">
+      <strong>✅ This is the LCEL pattern</strong> you'll use in 80% of LangChain code. Master this, and everything else — RAG chains, agents, multi-step pipelines — is just an extension of it.
+    </div>
+  </section>
+
+  <hr/>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SUMMARY                                            -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <section>
+    <div class="section-header">
+      <div class="section-label-row">
+        <span class="section-num num-green">✓</span>
+        <h2 class="section-title">Quick Reference Summary</h2>
+      </div>
+    </div>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <h4>🤖 Models</h4>
+        <ul>
+          <li>Use <code>ChatOpenAI</code> for all generation tasks</li>
+          <li>Use <code>OpenAIEmbeddings</code> only for RAG/search</li>
+          <li>Swap providers with one import change</li>
+          <li><code>.invoke()</code> sync · <code>.stream()</code> streaming · <code>.batch()</code> bulk</li>
+        </ul>
+      </div>
+      <div class="summary-card">
+        <h4>💬 Messages</h4>
+        <ul>
+          <li><code>SystemMessage</code> — AI persona/instructions (first)</li>
+          <li><code>HumanMessage</code> — what the user says</li>
+          <li><code>AIMessage</code> — what the AI responded (for history)</li>
+          <li>LLMs are stateless — pass full history every call</li>
+        </ul>
+      </div>
+      <div class="summary-card">
+        <h4>📝 Prompts</h4>
+        <ul>
+          <li><code>ChatPromptTemplate</code> — your daily driver</li>
+          <li><code>MessagesPlaceholder</code> — slot for dynamic message lists</li>
+          <li>Use <code>{variable}</code> syntax for inputs</li>
+          <li>It's a Runnable — pipe it with <code>|</code></li>
+        </ul>
+      </div>
+      <div class="summary-card">
+        <h4>🎯 Output Parsers</h4>
+        <ul>
+          <li><code>StrOutputParser</code> — just get the text string</li>
+          <li><code>JsonOutputParser</code> — get a Python dict</li>
+          <li><code>PydanticOutputParser</code> — get a typed, validated object</li>
+          <li>Always inject format instructions for Pydantic parser</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="highlight" style="margin-top:20px;">
+      <strong>The fundamental LCEL formula:</strong> <code>prompt | model | parser</code> — this is the DNA of every LangChain application you'll ever build.
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  LangChain Mastery Guide · Phase 1, Section 1.2 · Updated February 2026 · LangChain v0.3+
+</footer>
+
+</body>
+</html>
