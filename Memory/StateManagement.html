@@ -1,0 +1,1080 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LangChain 3.2 — Modern State Management</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Azeret+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --black:   #080808;
+      --panel:   #0f0f0f;
+      --panel2:  #141414;
+      --panel3:  #1a1a1a;
+      --grid:    #1c1c1c;
+      --rule:    #282828;
+      --orange:  #ff6a00;
+      --amber:   #ffaa00;
+      --red:     #ff2d2d;
+      --green:   #00e676;
+      --blue:    #00b4ff;
+      --white:   #f0f0f0;
+      --gray:    #888;
+      --gray2:   #555;
+      --code-bg: #050505;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--black);
+      color: var(--white);
+      font-family: 'Azeret Mono', monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      cursor: crosshair;
+    }
+
+    /* ── GRID BACKGROUND ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+      background-size: 32px 32px;
+      pointer-events: none;
+    }
+
+    /* ── SCANLINES ── */
+    body::after {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.08) 2px,
+        rgba(0,0,0,0.08) 4px
+      );
+      pointer-events: none;
+    }
+
+    * { position: relative; z-index: 1; }
+
+    /* ── NAV ── */
+    nav {
+      background: var(--orange);
+      padding: 0 0 0 0;
+      display: flex;
+      align-items: stretch;
+      position: sticky; top: 0; z-index: 999;
+      border-bottom: 3px solid var(--amber);
+      overflow: hidden;
+    }
+    .nav-id {
+      background: var(--black);
+      color: var(--orange);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px;
+      letter-spacing: 2px;
+      padding: 8px 20px;
+      display: flex; align-items: center;
+      border-right: 3px solid var(--amber);
+      white-space: nowrap;
+    }
+    .nav-links {
+      display: flex; flex-wrap: wrap; gap: 0;
+    }
+    nav a {
+      color: var(--black);
+      text-decoration: none;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 0 16px;
+      display: flex; align-items: center;
+      border-right: 1px solid rgba(0,0,0,0.2);
+      transition: background 0.1s;
+    }
+    nav a:hover { background: var(--amber); }
+
+    /* ── HERO ── */
+    .hero {
+      background: var(--black);
+      border-bottom: 4px solid var(--orange);
+      padding: 80px 56px 72px;
+      position: relative; overflow: hidden;
+    }
+    .hero-corner {
+      position: absolute;
+      border: 2px solid var(--orange);
+      width: 40px; height: 40px;
+    }
+    .hero-corner.tl { top: 20px; left: 20px; border-right: none; border-bottom: none; }
+    .hero-corner.tr { top: 20px; right: 20px; border-left: none; border-bottom: none; }
+    .hero-corner.bl { bottom: 20px; left: 20px; border-right: none; border-top: none; }
+    .hero-corner.br { bottom: 20px; right: 20px; border-left: none; border-top: none; }
+
+    .hero-tag {
+      font-size: 10px;
+      letter-spacing: 4px;
+      color: var(--orange);
+      text-transform: uppercase;
+      border: 1px solid var(--orange);
+      display: inline-block;
+      padding: 4px 12px;
+      margin-bottom: 28px;
+    }
+    .hero h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(4rem, 10vw, 8rem);
+      line-height: 0.9;
+      letter-spacing: 2px;
+      color: var(--white);
+      margin-bottom: 6px;
+    }
+    .hero h1 .o { color: var(--orange); }
+    .hero-sub {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(1.2rem, 3vw, 2.2rem);
+      letter-spacing: 4px;
+      color: var(--gray);
+      margin-bottom: 28px;
+    }
+    .hero-desc {
+      color: var(--gray);
+      max-width: 580px;
+      font-size: 12.5px;
+      line-height: 1.8;
+    }
+    .hero-index {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-top: 32px;
+    }
+    .hi {
+      border: 1px solid var(--rule);
+      padding: 5px 12px;
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--gray2);
+    }
+    .hi.active { border-color: var(--orange); color: var(--orange); }
+
+    /* ── LAYOUT ── */
+    .page { max-width: 1040px; margin: 0 auto; padding: 0 40px 80px; }
+
+    /* ── SECTION ── */
+    section {
+      border-left: 4px solid var(--rule);
+      padding: 60px 0 60px 40px;
+      position: relative;
+    }
+    section::before {
+      content: '';
+      position: absolute;
+      left: -4px; top: 0;
+      width: 4px; height: 60px;
+      background: var(--orange);
+    }
+
+    .sec-eyebrow {
+      display: flex; align-items: center; gap: 16px;
+      margin-bottom: 12px;
+    }
+    .sec-num {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 48px;
+      color: var(--orange);
+      line-height: 1;
+      letter-spacing: 2px;
+    }
+    .sec-label {
+      font-size: 9px;
+      letter-spacing: 4px;
+      color: var(--gray2);
+      text-transform: uppercase;
+      border-top: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+      padding: 5px 0;
+    }
+    .sec-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      letter-spacing: 2px;
+      color: var(--white);
+      line-height: 1.05;
+      margin-bottom: 8px;
+    }
+    .sec-desc { color: var(--gray); font-size: 12.5px; max-width: 640px; margin-bottom: 28px; }
+
+    hr { border: none; border-top: 1px solid var(--rule); margin: 0; }
+
+    /* ── CALLOUT BOXES ── */
+    .box {
+      border: 1px solid;
+      padding: 16px 20px;
+      margin: 16px 0;
+      font-size: 12.5px;
+      line-height: 1.75;
+    }
+    .box-label {
+      font-size: 9px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+    .box p, .box { color: var(--gray); }
+    .bx-o { border-color: rgba(255,106,0,0.4); background: rgba(255,106,0,0.04); }
+    .bx-o .box-label { color: var(--orange); }
+    .bx-g { border-color: rgba(0,230,118,0.3); background: rgba(0,230,118,0.03); }
+    .bx-g .box-label { color: var(--green); }
+    .bx-b { border-color: rgba(0,180,255,0.3); background: rgba(0,180,255,0.03); }
+    .bx-b .box-label { color: var(--blue); }
+    .bx-r { border-color: rgba(255,45,45,0.3); background: rgba(255,45,45,0.03); }
+    .bx-r .box-label { color: var(--red); }
+    .bx-a { border-color: rgba(255,170,0,0.3); background: rgba(255,170,0,0.03); }
+    .bx-a .box-label { color: var(--amber); }
+
+    /* ── CODE ── */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--rule);
+      border-top: 2px solid var(--orange);
+      padding: 22px 24px;
+      overflow-x: auto;
+      font-family: 'Azeret Mono', monospace;
+      font-size: 12px;
+      line-height: 1.85;
+      margin: 16px 0;
+      position: relative;
+    }
+    .cl {
+      display: block;
+      font-size: 9px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--orange);
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--rule);
+    }
+    .kw  { color: #ff6a6a; }
+    .fn  { color: #66b3ff; }
+    .str { color: #b5ff6a; }
+    .cm  { color: #3a3a3a; font-style: italic; }
+    .cls { color: #ffcc66; }
+    .op  { color: #66d9e8; }
+    .num { color: #ff9d66; }
+    code {
+      font-family: 'Azeret Mono', monospace;
+      background: var(--panel3);
+      border: 1px solid var(--rule);
+      padding: 1px 6px;
+      font-size: 11.5px;
+      color: var(--orange);
+    }
+
+    /* ── ARCHITECTURE DIAGRAM ── */
+    .arch {
+      border: 1px solid var(--rule);
+      background: var(--panel);
+      padding: 28px;
+      margin: 20px 0;
+      font-family: 'Azeret Mono', monospace;
+    }
+    .arch-title {
+      font-size: 9px; letter-spacing: 4px; text-transform: uppercase;
+      color: var(--orange); margin-bottom: 24px;
+      border-bottom: 1px solid var(--rule); padding-bottom: 10px;
+    }
+    .arch-row {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 10px; flex-wrap: wrap;
+    }
+    .arch-row:last-child { margin-bottom: 0; }
+    .abox {
+      padding: 8px 14px;
+      font-size: 11px;
+      border: 1px solid;
+      white-space: nowrap;
+    }
+    .ab-orange { border-color: var(--orange); color: var(--orange); background: rgba(255,106,0,0.06); }
+    .ab-blue   { border-color: var(--blue);   color: var(--blue);   background: rgba(0,180,255,0.06); }
+    .ab-green  { border-color: var(--green);  color: var(--green);  background: rgba(0,230,118,0.06); }
+    .ab-amber  { border-color: var(--amber);  color: var(--amber);  background: rgba(255,170,0,0.06); }
+    .ab-gray   { border-color: var(--rule);   color: var(--gray);   background: var(--panel2); }
+    .ab-red    { border-color: var(--red);    color: var(--red);    background: rgba(255,45,45,0.06); }
+    .arch-arrow { color: var(--orange); font-size: 16px; flex-shrink: 0; }
+    .arch-note { font-size: 10px; color: var(--gray2); font-style: italic; margin-left: 4px; }
+
+    /* ── BACKEND GRID ── */
+    .backend-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--rule);
+      border: 1px solid var(--rule);
+      margin: 18px 0;
+    }
+    @media (max-width: 700px) { .backend-grid { grid-template-columns: 1fr; } }
+    .bg-cell {
+      background: var(--panel);
+      padding: 22px 20px;
+    }
+    .bg-cell-head {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--rule);
+    }
+    .bg-icon {
+      width: 32px; height: 32px;
+      border: 1px solid;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+    }
+    .bg-name { font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+    .bg-cell p { font-size: 11.5px; color: var(--gray); line-height: 1.7; margin-bottom: 10px; }
+    .bg-spec {
+      font-size: 10px; letter-spacing: 1px;
+      padding: 3px 8px; border: 1px solid; display: inline-block; margin-top: 4px;
+    }
+    .bc-mem .bg-icon  { border-color: var(--blue);  color: var(--blue);  }
+    .bc-mem .bg-name  { color: var(--blue); }
+    .bc-mem .bg-spec  { border-color: rgba(0,180,255,0.3); color: var(--blue); }
+    .bc-red .bg-icon  { border-color: var(--red);   color: var(--red);   }
+    .bc-red .bg-name  { color: var(--red); }
+    .bc-red .bg-spec  { border-color: rgba(255,45,45,0.3); color: var(--red); }
+    .bc-fil .bg-icon  { border-color: var(--amber); color: var(--amber); }
+    .bc-fil .bg-name  { color: var(--amber); }
+    .bc-fil .bg-spec  { border-color: rgba(255,170,0,0.3); color: var(--amber); }
+
+    /* ── SESSION TABLE ── */
+    .session-vis {
+      background: var(--panel);
+      border: 1px solid var(--rule);
+      padding: 24px;
+      margin: 18px 0;
+    }
+    .sv-head {
+      font-size: 9px; letter-spacing: 4px; text-transform: uppercase;
+      color: var(--orange); margin-bottom: 18px;
+    }
+    .sv-row {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 12px;
+      margin-bottom: 10px;
+      align-items: start;
+    }
+    .sv-row:last-child { margin-bottom: 0; }
+    .sv-id {
+      font-size: 10px; letter-spacing: 1px;
+      padding: 6px 10px;
+      border: 1px solid var(--orange);
+      color: var(--orange);
+      background: rgba(255,106,0,0.05);
+      white-space: nowrap;
+    }
+    .sv-msgs { display: flex; gap: 6px; flex-wrap: wrap; }
+    .sv-msg {
+      font-size: 10px; padding: 5px 10px; border: 1px solid; white-space: nowrap;
+    }
+    .sm-h { border-color: rgba(0,180,255,0.4); color: var(--blue); }
+    .sm-a { border-color: rgba(0,230,118,0.4); color: var(--green); }
+    .sm-sep { color: var(--rule); align-self: center; }
+
+    /* ── TRIM DIAGRAM ── */
+    .trim-vis {
+      background: var(--panel);
+      border: 1px solid var(--rule);
+      padding: 24px;
+      margin: 18px 0;
+    }
+    .trim-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .trim-row:last-child { margin-bottom: 0; }
+    .trim-label {
+      font-size: 10px; letter-spacing: 2px;
+      color: var(--gray2); min-width: 80px;
+      text-transform: uppercase;
+    }
+    .tm {
+      font-size: 10px; padding: 5px 10px; border: 1px solid;
+    }
+    .tm-keep { border-color: rgba(0,230,118,0.4); color: var(--green); }
+    .tm-drop { border-color: var(--rule); color: var(--gray2); opacity: 0.3; text-decoration: line-through; }
+    .tm-sys  { border-color: rgba(255,170,0,0.4); color: var(--amber); }
+    .trim-arrow { color: var(--orange); font-size: 14px; }
+
+    /* ── COMPARISON TABLE ── */
+    .comp-wrap { overflow-x: auto; margin: 18px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 11.5px; min-width: 500px; }
+    thead { background: var(--orange); }
+    th { color: var(--black); font-weight: 700; letter-spacing: 2px; text-transform: uppercase; font-size: 9.5px; padding: 10px 14px; text-align: left; }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--rule); color: var(--gray); }
+    tr:hover td { background: var(--panel2); }
+    tr:last-child td { border-bottom: none; }
+    td:first-child { color: var(--white); font-weight: 600; font-size: 11px; }
+    .tag-g { display: inline-block; border: 1px solid rgba(0,230,118,0.4); color: var(--green); font-size: 9px; padding: 1px 7px; letter-spacing: 1px; }
+    .tag-r { display: inline-block; border: 1px solid rgba(255,45,45,0.4); color: var(--red); font-size: 9px; padding: 1px 7px; letter-spacing: 1px; }
+    .tag-a { display: inline-block; border: 1px solid rgba(255,170,0,0.4); color: var(--amber); font-size: 9px; padding: 1px 7px; letter-spacing: 1px; }
+
+    /* ── SUMMARY PANEL ── */
+    .summary-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+      background: var(--rule); border: 1px solid var(--rule);
+      margin-top: 24px;
+    }
+    @media (max-width: 600px) { .summary-grid { grid-template-columns: 1fr; } }
+    .sg-cell {
+      background: var(--panel);
+      padding: 22px;
+    }
+    .sg-head {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.3rem;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+    }
+    .sg-cell ul { list-style: none; }
+    .sg-cell li {
+      font-size: 11.5px; color: var(--gray);
+      padding: 4px 0;
+      border-bottom: 1px solid var(--grid);
+      display: flex; gap: 8px;
+    }
+    .sg-cell li:last-child { border-bottom: none; }
+    .sg-cell li::before { content: '›'; color: var(--orange); flex-shrink: 0; }
+
+    footer {
+      background: var(--panel);
+      border-top: 4px solid var(--orange);
+      padding: 28px 40px;
+      font-size: 10px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--gray2);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-id">3.2</div>
+  <div class="nav-links">
+    <a href="#rmh">RunnableWithHistory</a>
+    <a href="#backends">Backends</a>
+    <a href="#sessions">Sessions</a>
+    <a href="#trim">Trimming</a>
+    <a href="#summary">Summary</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-corner tl"></div>
+  <div class="hero-corner tr"></div>
+  <div class="hero-corner bl"></div>
+  <div class="hero-corner br"></div>
+  <div class="hero-tag">Phase 3 · Section 3.2</div>
+  <h1>MODERN<br/><span class="o">STATE</span></h1>
+  <div class="hero-sub">Management</div>
+  <p class="hero-desc">
+    The production-grade approach to conversation memory. RunnableWithMessageHistory, pluggable backends, multi-user session isolation, and surgical message trimming.
+  </p>
+  <div class="hero-index">
+    <span class="hi active">RunnableWithMessageHistory</span>
+    <span class="hi">In-Memory Backend</span>
+    <span class="hi">Redis Backend</span>
+    <span class="hi">File Backend</span>
+    <span class="hi">Session Management</span>
+    <span class="hi">Trimming</span>
+    <span class="hi">Filtering</span>
+  </div>
+</div>
+
+<div class="page">
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- 01 — RunnableWithMessageHistory                   -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="rmh">
+  <div class="sec-eyebrow">
+    <div class="sec-num">01</div>
+    <div class="sec-label">Core Primitive</div>
+  </div>
+  <div class="sec-title">RunnableWithMessageHistory</div>
+  <p class="sec-desc">
+    The LCEL-native wrapper that adds persistent, session-aware memory to any chain. Replaces the legacy <code>ConversationChain</code> pattern. Write your chain logic once — memory is handled automatically.
+  </p>
+
+  <div class="arch">
+    <div class="arch-title">// How it works — execution flow</div>
+    <div class="arch-row">
+      <div class="abox ab-gray">user input</div>
+      <div class="arch-arrow">→</div>
+      <div class="abox ab-orange">RunnableWithMessageHistory</div>
+      <div class="arch-arrow">→</div>
+      <div class="abox ab-blue">load_session_history(session_id)</div>
+    </div>
+    <div class="arch-row">
+      <div class="arch-note" style="padding-left:0;">↓ injects history into prompt</div>
+    </div>
+    <div class="arch-row">
+      <div class="abox ab-orange">prompt | model | parser</div>
+      <div class="arch-arrow">→</div>
+      <div class="abox ab-green">response</div>
+      <div class="arch-arrow">→</div>
+      <div class="abox ab-blue">save to session history</div>
+    </div>
+    <div class="arch-row">
+      <div class="arch-note" style="padding-left:0;">↓ returns response to caller</div>
+    </div>
+    <div class="arch-row">
+      <div class="abox ab-green">output string / object</div>
+      <div class="arch-note">fully transparent — caller sees no memory overhead</div>
+    </div>
+  </div>
+
+<pre>
+<span class="cl">// 01 — the complete modern memory setup</span>
+<span class="kw">from</span> langchain_core.runnables.history <span class="kw">import</span> <span class="cls">RunnableWithMessageHistory</span>
+<span class="kw">from</span> langchain_core.prompts <span class="kw">import</span> <span class="cls">ChatPromptTemplate</span>, <span class="cls">MessagesPlaceholder</span>
+<span class="kw">from</span> langchain_openai <span class="kw">import</span> <span class="cls">ChatOpenAI</span>
+<span class="kw">from</span> langchain_core.output_parsers <span class="kw">import</span> <span class="cls">StrOutputParser</span>
+<span class="kw">from</span> langchain_community.chat_message_histories <span class="kw">import</span> <span class="cls">ChatMessageHistory</span>
+<span class="kw">from</span> langchain_core.chat_history <span class="kw">import</span> <span class="cls">BaseChatMessageHistory</span>
+
+<span class="cm"># ── 1. Build a plain LCEL chain — NO memory logic here ───</span>
+prompt = <span class="cls">ChatPromptTemplate</span>.from_messages([
+    (<span class="str">"system"</span>, <span class="str">"You are {persona}. Be concise."</span>),
+    <span class="cls">MessagesPlaceholder</span>(variable_name=<span class="str">"history"</span>),  <span class="cm"># ← slot for history</span>
+    (<span class="str">"human"</span>,  <span class="str">"{input}"</span>),
+])
+
+chain = prompt <span class="op">|</span> <span class="cls">ChatOpenAI</span>(model=<span class="str">"gpt-4o-mini"</span>) <span class="op">|</span> <span class="cls">StrOutputParser</span>()
+
+<span class="cm"># ── 2. Session store — maps session_id → history object ──</span>
+store: <span class="fn">dict</span>[<span class="fn">str</span>, <span class="cls">BaseChatMessageHistory</span>] = {}
+
+<span class="kw">def</span> <span class="fn">get_session_history</span>(session_id: <span class="fn">str</span>) -> <span class="cls">BaseChatMessageHistory</span>:
+    <span class="kw">if</span> session_id <span class="kw">not in</span> store:
+        store[session_id] = <span class="cls">ChatMessageHistory</span>()
+    <span class="kw">return</span> store[session_id]
+
+<span class="cm"># ── 3. Wrap the chain — this is where memory is attached ─</span>
+chain_with_memory = <span class="cls">RunnableWithMessageHistory</span>(
+    chain,
+    get_session_history,              <span class="cm"># factory fn: session_id → history</span>
+    input_messages_key=<span class="str">"input"</span>,      <span class="cm"># key in your dict that holds user input</span>
+    history_messages_key=<span class="str">"history"</span>,  <span class="cm"># must match MessagesPlaceholder variable</span>
+)
+
+<span class="cm"># ── 4. Invoke — always pass config with session_id ────────</span>
+cfg = <span class="kw">lambda</span> sid: {<span class="str">"configurable"</span>: {<span class="str">"session_id"</span>: sid}}
+
+r1 = chain_with_memory.invoke(
+    {<span class="str">"input"</span>: <span class="str">"My name is Yasmin."</span>, <span class="str">"persona"</span>: <span class="str">"a friendly tutor"</span>},
+    config=<span class="fn">cfg</span>(<span class="str">"session_abc"</span>)
+)
+r2 = chain_with_memory.invoke(
+    {<span class="str">"input"</span>: <span class="str">"What is my name?"</span>, <span class="str">"persona"</span>: <span class="str">"a friendly tutor"</span>},
+    config=<span class="fn">cfg</span>(<span class="str">"session_abc"</span>)   <span class="cm"># same session_id → shared history</span>
+)
+<span class="fn">print</span>(r2)  <span class="cm"># "Your name is Yasmin."</span>
+
+<span class="cm"># ── 5. Streaming works identically ───────────────────────</span>
+<span class="kw">for</span> chunk <span class="kw">in</span> chain_with_memory.stream(
+    {<span class="str">"input"</span>: <span class="str">"Tell me more."</span>, <span class="str">"persona"</span>: <span class="str">"a friendly tutor"</span>},
+    config=<span class="fn">cfg</span>(<span class="str">"session_abc"</span>)
+):
+    <span class="fn">print</span>(chunk, end=<span class="str">""</span>, flush=<span class="op">True</span>)
+</pre>
+
+  <div class="box bx-o">
+    <span class="box-label">Key insight</span>
+    The <code>session_id</code> is the only thing that separates one user's conversation from another's. The chain itself is completely stateless — <code>RunnableWithMessageHistory</code> loads and saves history transparently around every call.
+  </div>
+</section>
+
+<hr/>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- 02 — BACKENDS                                     -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="backends">
+  <div class="sec-eyebrow">
+    <div class="sec-num">02</div>
+    <div class="sec-label">Storage Backends</div>
+  </div>
+  <div class="sec-title">Chat History Backends</div>
+  <p class="sec-desc">
+    The backend is the only thing that changes between environments. Your chain code stays identical. Swap backends by replacing the factory function.
+  </p>
+
+  <div class="backend-grid">
+    <div class="bg-cell bc-mem">
+      <div class="bg-cell-head">
+        <div class="bg-icon">⚡</div>
+        <div class="bg-name">In-Memory</div>
+      </div>
+      <p>Stores history in a Python dict — lives in your process RAM. Fastest possible. Lost on restart or when the process dies.</p>
+      <div class="bg-spec">NO PERSISTENCE</div>
+    </div>
+    <div class="bg-cell bc-red">
+      <div class="bg-cell-head">
+        <div class="bg-icon">🗄</div>
+        <div class="bg-name">Redis</div>
+      </div>
+      <p>External key-value store. Survives restarts, scales horizontally, supports TTL expiry. The production standard for chat history.</p>
+      <div class="bg-spec">PRODUCTION STANDARD</div>
+    </div>
+    <div class="bg-cell bc-fil">
+      <div class="bg-cell-head">
+        <div class="bg-icon">📁</div>
+        <div class="bg-name">File / SQL / Mongo</div>
+      </div>
+      <p>Persistent local storage or databases. Good for single-server deployments, audit trails, or when you own the infra.</p>
+      <div class="bg-spec">PERSISTENT LOCAL</div>
+    </div>
+  </div>
+
+<pre>
+<span class="cl">// backend 1 — in-memory (dev / testing)</span>
+<span class="kw">from</span> langchain_community.chat_message_histories <span class="kw">import</span> <span class="cls">ChatMessageHistory</span>
+
+store = {}
+<span class="kw">def</span> <span class="fn">get_memory_history</span>(session_id: <span class="fn">str</span>):
+    <span class="kw">if</span> session_id <span class="kw">not in</span> store:
+        store[session_id] = <span class="cls">ChatMessageHistory</span>()
+    <span class="kw">return</span> store[session_id]
+
+<span class="cm"># ⚠ Dies with process — no persistence whatsoever</span>
+</pre>
+
+<pre>
+<span class="cl">// backend 2 — redis (production)</span>
+<span class="cm"># pip install langchain-community redis</span>
+<span class="kw">from</span> langchain_community.chat_message_histories <span class="kw">import</span> <span class="cls">RedisChatMessageHistory</span>
+
+REDIS_URL = <span class="str">"redis://localhost:6379"</span>
+
+<span class="kw">def</span> <span class="fn">get_redis_history</span>(session_id: <span class="fn">str</span>):
+    <span class="kw">return</span> <span class="cls">RedisChatMessageHistory</span>(
+        session_id=session_id,
+        url=REDIS_URL,
+        ttl=<span class="num">86400</span>,          <span class="cm"># expire after 24h — prevent memory leaks</span>
+        key_prefix=<span class="str">"chat:"</span>,  <span class="cm"># redis key = "chat:{session_id}"</span>
+    )
+
+<span class="cm"># Drop-in swap — chain_with_memory code changes nothing</span>
+chain_with_memory = <span class="cls">RunnableWithMessageHistory</span>(
+    chain, <span class="fn">get_redis_history</span>, <span class="cm"># ← only this line changes</span>
+    input_messages_key=<span class="str">"input"</span>,
+    history_messages_key=<span class="str">"history"</span>,
+)
+</pre>
+
+<pre>
+<span class="cl">// backend 3 — file-based (single server / audit)</span>
+<span class="cm"># pip install langchain-community</span>
+<span class="kw">from</span> langchain_community.chat_message_histories <span class="kw">import</span> <span class="cls">FileChatMessageHistory</span>
+<span class="kw">import</span> os
+
+<span class="kw">def</span> <span class="fn">get_file_history</span>(session_id: <span class="fn">str</span>):
+    path = <span class="str">f"./chat_logs/{session_id}.json"</span>
+    os.makedirs(<span class="str">"./chat_logs"</span>, exist_ok=<span class="op">True</span>)
+    <span class="kw">return</span> <span class="cls">FileChatMessageHistory</span>(path)
+
+<span class="cm"># Each session gets its own JSON file — human readable, auditable</span>
+<span class="cm"># ./chat_logs/session_abc.json, ./chat_logs/session_xyz.json, ...</span>
+</pre>
+
+<pre>
+<span class="cl">// backend 4 — sqlite / postgres (structured queries)</span>
+<span class="cm"># pip install langchain-community SQLAlchemy</span>
+<span class="kw">from</span> langchain_community.chat_message_histories <span class="kw">import</span> <span class="cls">SQLChatMessageHistory</span>
+
+<span class="kw">def</span> <span class="fn">get_sql_history</span>(session_id: <span class="fn">str</span>):
+    <span class="kw">return</span> <span class="cls">SQLChatMessageHistory</span>(
+        session_id=session_id,
+        connection=<span class="str">"sqlite:///chat_history.db"</span>,   <span class="cm"># or postgresql://...</span>
+        table_name=<span class="str">"message_store"</span>,
+    )
+<span class="cm"># Creates table automatically. Query history with SQL. Great for analytics.</span>
+</pre>
+
+  <div class="box bx-g">
+    <span class="box-label">Choosing your backend</span>
+    Local dev → <code>ChatMessageHistory</code> (no infra needed). Staging / single-server production → <code>FileChatMessageHistory</code> or <code>SQLChatMessageHistory</code>. Multi-server / high-traffic production → <code>RedisChatMessageHistory</code> with TTL. Need analytics on conversations → <code>SQLChatMessageHistory</code> with PostgreSQL.
+  </div>
+</section>
+
+<hr/>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- 03 — SESSION MANAGEMENT                           -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="sessions">
+  <div class="sec-eyebrow">
+    <div class="sec-num">03</div>
+    <div class="sec-label">Multi-User Architecture</div>
+  </div>
+  <div class="sec-title">Session Management</div>
+  <p class="sec-desc">
+    One session ID per user per conversation. Sessions are the only isolation boundary between users. Getting this wrong leaks one user's history into another's context.
+  </p>
+
+  <div class="session-vis">
+    <div class="sv-head">// session isolation — each user sees only their own history</div>
+    <div class="sv-row">
+      <div class="sv-id">user_a::sess_01</div>
+      <div class="sv-msgs">
+        <div class="sv-msg sm-h">H: I'm Yasmin</div>
+        <div class="sv-msg sm-a">A: Hi Yasmin!</div>
+        <div class="sv-msg sm-h">H: I love chess</div>
+        <div class="sv-msg sm-a">A: Great game!</div>
+      </div>
+    </div>
+    <div class="sv-row">
+      <div class="sv-id">user_b::sess_99</div>
+      <div class="sv-msgs">
+        <div class="sv-msg sm-h">H: I'm Omar</div>
+        <div class="sv-msg sm-a">A: Hi Omar!</div>
+        <div class="sv-msg sm-h">H: What's chess?</div>
+        <div class="sv-msg sm-a">A: A strategy game...</div>
+      </div>
+    </div>
+    <div class="sv-row">
+      <div class="sv-id">user_a::sess_02</div>
+      <div class="sv-msgs">
+        <div class="sv-msg sm-h">H: New conversation</div>
+        <div class="sv-msg sm-a">A: How can I help?</div>
+        <div style="font-size:10px;color:var(--gray2);align-self:center;">← different session ID = fresh start</div>
+      </div>
+    </div>
+  </div>
+
+<pre>
+<span class="cl">// session ID strategy for production apps</span>
+<span class="kw">import</span> uuid
+<span class="kw">from</span> datetime <span class="kw">import</span> datetime
+
+<span class="cm"># ── Strategy 1: UUID per conversation ────────────────────</span>
+<span class="cm"># New conversation = new UUID. Simple, collision-proof.</span>
+session_id = str(uuid.uuid4())
+<span class="cm"># "f47ac10b-58cc-4372-a567-0e02b2c3d479"</span>
+
+<span class="cm"># ── Strategy 2: user_id + conversation_id ────────────────</span>
+<span class="cm"># Namespace by user — easier to query/delete all of a user's history</span>
+<span class="kw">def</span> <span class="fn">make_session_id</span>(user_id: <span class="fn">str</span>, conv_id: <span class="fn">str</span>) -> <span class="fn">str</span>:
+    <span class="kw">return</span> <span class="str">f"{user_id}::{conv_id}"</span>
+
+session_id = <span class="fn">make_session_id</span>(<span class="str">"user_123"</span>, <span class="str">"conv_456"</span>)
+<span class="cm"># "user_123::conv_456"</span>
+
+<span class="cm"># ── Strategy 3: user_id + timestamp ──────────────────────</span>
+<span class="cm"># Human-readable, sortable</span>
+<span class="kw">def</span> <span class="fn">new_session</span>(user_id: <span class="fn">str</span>) -> <span class="fn">str</span>:
+    ts = datetime.utcnow().strftime(<span class="str">"%Y%m%dT%H%M%S"</span>)
+    <span class="kw">return</span> <span class="str">f"{user_id}:{ts}"</span>
+
+session_id = <span class="fn">new_session</span>(<span class="str">"user_123"</span>)
+<span class="cm"># "user_123:20260221T143055"</span>
+
+
+<span class="cm"># ── FastAPI integration example ──────────────────────────</span>
+<span class="kw">from</span> fastapi <span class="kw">import</span> <span class="cls">FastAPI</span>, <span class="cls">Header</span>
+<span class="kw">from</span> pydantic <span class="kw">import</span> <span class="cls">BaseModel</span>
+
+app = <span class="cls">FastAPI</span>()
+
+<span class="kw">class</span> <span class="cls">ChatRequest</span>(<span class="cls">BaseModel</span>):
+    message: <span class="fn">str</span>
+    session_id: <span class="fn">str</span>   <span class="cm"># client sends their session_id</span>
+
+<span class="op">@</span>app.post(<span class="str">"/chat"</span>)
+<span class="kw">async def</span> <span class="fn">chat</span>(req: <span class="cls">ChatRequest</span>, x_user_id: <span class="fn">str</span> = <span class="cls">Header</span>(...)):
+    <span class="cm"># Namespace session by user — prevents cross-user access</span>
+    safe_session_id = <span class="str">f"{x_user_id}::{req.session_id}"</span>
+
+    response = <span class="kw">await</span> chain_with_memory.ainvoke(
+        {<span class="str">"input"</span>: req.message},
+        config={<span class="str">"configurable"</span>: {<span class="str">"session_id"</span>: safe_session_id}}
+    )
+    <span class="kw">return</span> {<span class="str">"response"</span>: response, <span class="str">"session_id"</span>: req.session_id}
+
+
+<span class="cm"># ── Listing and clearing sessions ─────────────────────────</span>
+<span class="cm"># With RedisChatMessageHistory:</span>
+history = <span class="fn">get_redis_history</span>(<span class="str">"user_123::conv_456"</span>)
+history.clear()   <span class="cm"># wipe this session</span>
+
+<span class="cm"># Inspect a session's messages</span>
+<span class="kw">for</span> msg <span class="kw">in</span> history.messages:
+    <span class="fn">print</span>(<span class="fn">type</span>(msg).__name__, <span class="str">":"</span>, msg.content[:80])
+</pre>
+
+  <div class="box bx-r">
+    <span class="box-label">Security warning</span>
+    Never let users supply arbitrary session IDs without namespacing them by their authenticated user ID. If user B knows user A's session ID, they can read A's entire conversation history. Always prefix with the authenticated user's ID server-side.
+  </div>
+</section>
+
+<hr/>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- 04 — TRIMMING & FILTERING                         -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="trim">
+  <div class="sec-eyebrow">
+    <div class="sec-num">04</div>
+    <div class="sec-label">Context Control</div>
+  </div>
+  <div class="sec-title">Trimming & Filtering Messages</div>
+  <p class="sec-desc">
+    As conversations grow, you need surgical control over what goes into the context window. LangChain provides two utilities: <code>trim_messages</code> for token-based trimming and manual filtering for custom rules.
+  </p>
+
+  <div class="trim-vis">
+    <div style="font-size:9px;letter-spacing:4px;color:var(--orange);margin-bottom:18px;text-transform:uppercase;">// trim_messages — token budget enforcement</div>
+    <div class="trim-row">
+      <div class="trim-label">Before</div>
+      <div class="tm tm-drop">sys:tutor</div>
+      <div class="tm tm-drop">H:name</div>
+      <div class="tm tm-drop">A:hi!</div>
+      <div class="tm tm-drop">H:python?</div>
+      <div class="tm tm-drop">A:lang...</div>
+      <div class="tm tm-keep">H:loops?</div>
+      <div class="tm tm-keep">A:for i...</div>
+      <div class="tm tm-keep">H:classes?</div>
+    </div>
+    <div class="trim-arrow">↓ trim to 200 tokens, keep system message, start_on=HumanMessage</div>
+    <div class="trim-row" style="margin-top:12px;">
+      <div class="trim-label">After</div>
+      <div class="tm tm-sys">sys:tutor</div>
+      <div class="tm tm-keep">H:loops?</div>
+      <div class="tm tm-keep">A:for i...</div>
+      <div class="tm tm-keep">H:classes?</div>
+    </div>
+  </div>
+
+<pre>
+<span class="cl">// trim_messages — the production utility</span>
+<span class="kw">from</span> langchain_core.messages <span class="kw">import</span> trim_messages, <span class="cls">SystemMessage</span>
+<span class="kw">from</span> langchain_openai <span class="kw">import</span> <span class="cls">ChatOpenAI</span>
+
+model = <span class="cls">ChatOpenAI</span>(model=<span class="str">"gpt-4o-mini"</span>)
+
+trimmer = <span class="fn">trim_messages</span>(
+    max_tokens=<span class="num">500</span>,                  <span class="cm"># hard token budget</span>
+    strategy=<span class="str">"last"</span>,                 <span class="cm"># keep LAST N tokens (most recent)</span>
+    token_counter=model,              <span class="cm"># uses model's tokenizer for accuracy</span>
+    include_system=<span class="op">True</span>,            <span class="cm"># always keep system message</span>
+    allow_partial=<span class="op">False</span>,            <span class="cm"># never cut a message in half</span>
+    start_on=<span class="str">"human"</span>,               <span class="cm"># trimmed list always starts with HumanMessage</span>
+)
+
+<span class="cm"># Use in a chain — slot it between history loading and the prompt</span>
+<span class="kw">from</span> langchain_core.runnables <span class="kw">import</span> <span class="cls">RunnablePassthrough</span>
+
+chain = (
+    <span class="cls">RunnablePassthrough</span>.assign(
+        history=<span class="kw">lambda</span> x: trimmer.invoke(x[<span class="str">"history"</span>])  <span class="cm"># trim before injecting</span>
+    )
+    <span class="op">|</span> prompt <span class="op">|</span> model <span class="op">|</span> parser
+)
+</pre>
+
+<pre>
+<span class="cl">// manual filtering — remove specific message types or patterns</span>
+<span class="kw">from</span> langchain_core.messages <span class="kw">import</span> <span class="cls">BaseMessage</span>, <span class="cls">HumanMessage</span>, <span class="cls">AIMessage</span>, <span class="cls">SystemMessage</span>
+
+<span class="cm"># ── Filter 1: Keep only last N message pairs ─────────────</span>
+<span class="kw">def</span> <span class="fn">keep_last_n_pairs</span>(messages: <span class="fn">list</span>, n: <span class="fn">int</span>) -> <span class="fn">list</span>:
+    <span class="cm"># Keep system messages + last N human/AI pairs</span>
+    system = [m <span class="kw">for</span> m <span class="kw">in</span> messages <span class="kw">if</span> <span class="fn">isinstance</span>(m, <span class="cls">SystemMessage</span>)]
+    convo  = [m <span class="kw">for</span> m <span class="kw">in</span> messages <span class="kw">if</span> <span class="kw">not</span> <span class="fn">isinstance</span>(m, <span class="cls">SystemMessage</span>)]
+    <span class="kw">return</span> system + convo[-(n * <span class="num">2</span>):]   <span class="cm"># n pairs = 2n messages</span>
+
+<span class="cm"># ── Filter 2: Remove tool call noise ─────────────────────</span>
+<span class="kw">from</span> langchain_core.messages <span class="kw">import</span> <span class="cls">ToolMessage</span>
+
+<span class="kw">def</span> <span class="fn">strip_tool_messages</span>(messages: <span class="fn">list</span>) -> <span class="fn">list</span>:
+    <span class="kw">return</span> [m <span class="kw">for</span> m <span class="kw">in</span> messages <span class="kw">if</span> <span class="kw">not</span> <span class="fn">isinstance</span>(m, <span class="cls">ToolMessage</span>)]
+
+<span class="cm"># ── Filter 3: Content-based filtering ────────────────────</span>
+<span class="kw">def</span> <span class="fn">remove_pii</span>(messages: <span class="fn">list</span>) -> <span class="fn">list</span>:
+    <span class="kw">import</span> re
+    pattern = <span class="fn">re.compile</span>(<span class="str">r'\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b'</span>)  <span class="cm"># CC numbers</span>
+    cleaned = []
+    <span class="kw">for</span> msg <span class="kw">in</span> messages:
+        new_content = pattern.sub(<span class="str">"[REDACTED]"</span>, msg.content)
+        cleaned.append(msg.model_copy(update={<span class="str">"content"</span>: new_content}))
+    <span class="kw">return</span> cleaned
+
+<span class="cm"># ── Compose filters in a chain ────────────────────────────</span>
+<span class="kw">from</span> langchain_core.runnables <span class="kw">import</span> <span class="cls">RunnableLambda</span>
+
+filter_chain = (
+    <span class="cls">RunnableLambda</span>(<span class="kw">lambda</span> msgs: <span class="fn">keep_last_n_pairs</span>(msgs, n=<span class="num">5</span>))
+    <span class="op">|</span> <span class="cls">RunnableLambda</span>(<span class="fn">strip_tool_messages</span>)
+    <span class="op">|</span> <span class="cls">RunnableLambda</span>(<span class="fn">remove_pii</span>)
+)
+
+<span class="cm"># Slot into your full chain</span>
+chain = (
+    <span class="cls">RunnablePassthrough</span>.assign(
+        history=<span class="kw">lambda</span> x: filter_chain.invoke(x[<span class="str">"history"</span>])
+    )
+    <span class="op">|</span> prompt <span class="op">|</span> model <span class="op">|</span> parser
+)
+</pre>
+
+  <div class="box bx-a">
+    <span class="box-label">trim_messages strategy options</span>
+    <code>strategy="last"</code> — keep the most recent messages (most common). <code>strategy="first"</code> — keep the oldest messages. The <code>start_on="human"</code> parameter ensures the trimmed list never starts with an AI message mid-thought, which would confuse the model about who spoke first.
+  </div>
+
+  <div class="box bx-b">
+    <span class="box-label">When to trim vs when to summarize</span>
+    <strong>Trimming</strong> is surgical — it cuts tokens without adding any. Zero extra LLM calls. Use it when you need hard token budget enforcement. <strong>Summarizing</strong> (Phase 3.1) compresses old turns into a summary. More expensive but preserves long-term context. In practice: trim recent history to fit the window, summarize older history that doesn't fit at all.
+  </div>
+</section>
+
+<hr/>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- 05 — SUMMARY                                      -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="summary">
+  <div class="sec-eyebrow">
+    <div class="sec-num">05</div>
+    <div class="sec-label">Reference</div>
+  </div>
+  <div class="sec-title">Quick Reference</div>
+
+  <div class="comp-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>What it does</th>
+          <th>When to use</th>
+          <th>Cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>RunnableWithMessageHistory</td>
+          <td>Wraps any chain with auto history loading/saving</td>
+          <td>Always — this is the modern standard</td>
+          <td><span class="tag-g">None</span></td>
+        </tr>
+        <tr>
+          <td>ChatMessageHistory</td>
+          <td>In-memory backend</td>
+          <td>Dev / testing only</td>
+          <td><span class="tag-g">Free</span></td>
+        </tr>
+        <tr>
+          <td>RedisChatMessageHistory</td>
+          <td>Redis backend with TTL</td>
+          <td>Production multi-user apps</td>
+          <td><span class="tag-a">Redis cost</span></td>
+        </tr>
+        <tr>
+          <td>FileChatMessageHistory</td>
+          <td>JSON file per session</td>
+          <td>Single-server / audit logging</td>
+          <td><span class="tag-g">Disk only</span></td>
+        </tr>
+        <tr>
+          <td>SQLChatMessageHistory</td>
+          <td>SQL table-backed storage</td>
+          <td>Analytics, structured queries</td>
+          <td><span class="tag-a">DB cost</span></td>
+        </tr>
+        <tr>
+          <td>trim_messages()</td>
+          <td>Token-budget trimming utility</td>
+          <td>Preventing context window overflow</td>
+          <td><span class="tag-g">None</span></td>
+        </tr>
+        <tr>
+          <td>Manual filter functions</td>
+          <td>Custom message filtering logic</td>
+          <td>PII removal, type filtering, custom rules</td>
+          <td><span class="tag-g">None</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="summary-grid">
+    <div class="sg-cell">
+      <div class="sg-head" style="color:var(--orange);">THE SETUP</div>
+      <ul>
+        <li>Build a plain LCEL chain with <code>MessagesPlaceholder</code></li>
+        <li>Write a <code>get_session_history(session_id)</code> factory</li>
+        <li>Wrap with <code>RunnableWithMessageHistory</code></li>
+        <li>Always pass <code>config={"configurable": {"session_id": ...}}</code></li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <div class="sg-head" style="color:var(--blue);">BACKEND CHOICE</div>
+      <ul>
+        <li>Dev → <code>ChatMessageHistory</code> (in-memory)</li>
+        <li>Production → <code>RedisChatMessageHistory</code> + TTL</li>
+        <li>Audit / analytics → <code>SQLChatMessageHistory</code></li>
+        <li>Swap by replacing only the factory function</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <div class="sg-head" style="color:var(--green);">SESSIONS</div>
+      <ul>
+        <li>One session ID = one conversation</li>
+        <li>Always namespace by authenticated user ID</li>
+        <li>New conversation = new session ID</li>
+        <li>Server-side namespacing prevents cross-user leaks</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <div class="sg-head" style="color:var(--amber);">TRIMMING</div>
+      <ul>
+        <li><code>trim_messages(max_tokens=N)</code> for token budgets</li>
+        <li>Always set <code>include_system=True</code></li>
+        <li>Set <code>start_on="human"</code> for coherent context</li>
+        <li>Compose with manual filters via <code>RunnableLambda</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="box bx-o" style="margin-top:24px;">
+    <span class="box-label">The production pattern — complete in one block</span>
+    <code>chain</code> (plain LCEL) → <code>RunnableWithMessageHistory(chain, get_redis_history)</code> → <code>trim_messages()</code> in a <code>RunnablePassthrough.assign()</code> before the prompt → session IDs namespaced as <code>{user_id}::{conv_id}</code> → Redis with 24h TTL. That's the entire production memory stack.
+  </div>
+</section>
+
+</div>
+
+<footer>
+  LangChain Mastery Guide &nbsp;·&nbsp; Phase 3 · Section 3.2 &nbsp;·&nbsp; February 2026 &nbsp;·&nbsp; LangChain v0.3+
+</footer>
+
+</body>
+</html>
