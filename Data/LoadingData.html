@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LangChain 4.1 — Loading Data</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Overpass+Mono:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --cream:   #f8f4ed;
+      --paper:   #f2ece0;
+      --warm:    #e8dfd0;
+      --rule:    #d4c9b6;
+      --rule2:   #bfb49e;
+      --ink:     #1a1410;
+      --ink2:    #3d2f20;
+      --muted:   #7a6a58;
+      --muted2:  #a09080;
+
+      /* loader colors */
+      --text-c:  #1a4a3a;
+      --pdf-c:   #4a1a1a;
+      --csv-c:   #1a3a4a;
+      --web-c:   #2a1a4a;
+      --yt-c:    #4a2a1a;
+      --db-c:    #1a4a2a;
+      --api-c:   #3a1a4a;
+      --cloud-c: #4a3a1a;
+
+      --text-bg: #e8f4f0;
+      --pdf-bg:  #f4e8e8;
+      --csv-bg:  #e8f0f4;
+      --web-bg:  #ede8f4;
+      --yt-bg:   #f4ede8;
+      --db-bg:   #e8f4ec;
+      --api-bg:  #f0e8f4;
+      --cloud-bg:#f4f0e8;
+
+      --code-bg: #141210;
+      --code-border: #2a2420;
+      --green:   #2d6a4f;
+      --red:     #7a2020;
+      --amber:   #7a5a20;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--cream);
+      color: var(--ink);
+      font-family: 'Overpass Mono', monospace;
+      font-size: 13.5px;
+      line-height: 1.8;
+    }
+
+    /* ── NEWSPAPER COLUMNS TEXTURE ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image: repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent calc(100% / 12 - 1px),
+        rgba(160,144,128,0.08) calc(100% / 12 - 1px),
+        rgba(160,144,128,0.08) calc(100% / 12)
+      );
+      pointer-events: none;
+    }
+
+    * { position: relative; z-index: 1; }
+
+    /* ── MASTHEAD NAV ── */
+    .masthead {
+      background: var(--ink);
+      color: var(--cream);
+      text-align: center;
+      padding: 8px 20px;
+      font-size: 10px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      border-bottom: 3px double var(--cream);
+    }
+
+    nav {
+      background: var(--paper);
+      border-bottom: 2px solid var(--ink);
+      padding: 10px 40px;
+      display: flex; gap: 0; flex-wrap: wrap;
+      align-items: center;
+      position: sticky; top: 0; z-index: 200;
+    }
+    .nav-vol {
+      font-size: 10px; letter-spacing: 2px;
+      color: var(--muted); margin-right: 20px;
+      border-right: 1px solid var(--rule); padding-right: 20px;
+    }
+    nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 10.5px;
+      letter-spacing: 0.5px;
+      padding: 4px 14px;
+      border-right: 1px solid var(--rule);
+      transition: all 0.12s;
+    }
+    nav a:hover { color: var(--ink); background: var(--warm); }
+
+    /* ── HERO — NEWSPAPER FRONT PAGE ── */
+    .hero {
+      background: var(--paper);
+      border-bottom: 4px double var(--ink);
+      padding: 0;
+    }
+    .hero-dateline {
+      background: var(--ink);
+      color: var(--cream);
+      text-align: center;
+      padding: 10px 20px;
+      font-size: 10px;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+    }
+    .hero-body {
+      display: grid;
+      grid-template-columns: 1fr 2px 1fr;
+      max-width: 1040px;
+      margin: 0 auto;
+    }
+    .hero-left {
+      padding: 48px 40px 48px 40px;
+      border-right: none;
+    }
+    .hero-divider {
+      background: var(--rule);
+      margin: 40px 0;
+    }
+    .hero-right {
+      padding: 48px 40px 48px 32px;
+    }
+    .hero-kicker {
+      font-size: 10px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-top: 2px solid var(--ink);
+      border-bottom: 1px solid var(--rule);
+      padding: 6px 0;
+      margin-bottom: 16px;
+    }
+    .hero h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(3rem, 6vw, 5.5rem);
+      line-height: 0.95;
+      color: var(--ink);
+      margin-bottom: 16px;
+      letter-spacing: -1px;
+    }
+    .hero h1 em {
+      font-style: italic;
+      color: var(--muted);
+    }
+    .hero-byline {
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--muted2);
+      text-transform: uppercase;
+      border-top: 1px solid var(--rule);
+      padding-top: 10px;
+      margin-bottom: 20px;
+    }
+    .hero-lede {
+      font-size: 14px;
+      line-height: 1.75;
+      color: var(--ink2);
+      font-weight: 300;
+    }
+    .hero-index-head {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.1rem;
+      color: var(--ink);
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--rule);
+      padding-bottom: 8px;
+    }
+    .hero-toc li {
+      list-style: none;
+      font-size: 11.5px;
+      color: var(--muted);
+      padding: 5px 0;
+      border-bottom: 1px dotted var(--rule);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .hero-toc li a { text-decoration: none; color: var(--ink2); }
+    .hero-toc li a:hover { text-decoration: underline; }
+    .page-num { color: var(--muted2); font-size: 10px; }
+
+    /* ── LAYOUT ── */
+    .page { max-width: 1040px; margin: 0 auto; padding: 0 40px 80px; }
+
+    /* ── SECTION ── */
+    .section-rule {
+      border: none;
+      border-top: 2px solid var(--ink);
+      margin: 60px 0 0;
+    }
+    .section-rule + section { padding-top: 32px; }
+    section { padding-bottom: 60px; }
+
+    .sec-kicker {
+      font-size: 9.5px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .sec-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+      color: var(--ink);
+      line-height: 1.1;
+      margin-bottom: 6px;
+      letter-spacing: -0.5px;
+    }
+    .sec-deck {
+      font-size: 14px;
+      color: var(--muted);
+      font-weight: 300;
+      max-width: 640px;
+      border-top: 1px solid var(--rule);
+      padding-top: 10px;
+      margin-top: 8px;
+      margin-bottom: 28px;
+    }
+
+    /* ── CALLOUTS ── */
+    .pull-quote {
+      border-top: 3px solid var(--ink);
+      border-bottom: 1px solid var(--rule);
+      padding: 16px 0;
+      margin: 20px 0;
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.15rem;
+      line-height: 1.5;
+      color: var(--ink2);
+      font-style: italic;
+    }
+
+    .box {
+      border: 1px solid var(--rule);
+      padding: 16px 20px;
+      margin: 16px 0;
+      font-size: 12.5px;
+      line-height: 1.75;
+      color: var(--ink2);
+    }
+    .box-label {
+      font-size: 9px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+    .bx-ink  { background: var(--warm);   border-color: var(--rule2); }
+    .bx-ink .box-label { color: var(--ink); }
+    .bx-g   { background: var(--db-bg);  border-color: rgba(26,74,42,0.25); }
+    .bx-g .box-label  { color: var(--green); }
+    .bx-r   { background: var(--pdf-bg); border-color: rgba(122,32,32,0.25); }
+    .bx-r .box-label  { color: var(--red); }
+    .bx-a   { background: var(--cloud-bg); border-color: rgba(122,90,32,0.25); }
+    .bx-a .box-label  { color: var(--amber); }
+
+    /* ── CODE ── */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      border-left: 3px solid var(--ink);
+      padding: 22px 24px;
+      overflow-x: auto;
+      font-family: 'Overpass Mono', monospace;
+      font-size: 12px;
+      line-height: 1.85;
+      margin: 16px 0;
+      position: relative;
+      color: #c8c0b4;
+    }
+    .code-head {
+      background: var(--ink);
+      color: var(--muted2);
+      font-size: 9px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      padding: 7px 24px;
+      border-left: 3px solid var(--ink);
+      margin-bottom: 0;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .code-head + pre { margin-top: 0; border-top: none; }
+    .kw  { color: #e8a090; }
+    .fn  { color: #90b8e8; }
+    .str { color: #a8d890; }
+    .cm  { color: #4a4038; font-style: italic; }
+    .cls { color: #e8c890; }
+    .op  { color: #90d8e8; }
+    .num { color: #e8b890; }
+    code {
+      font-family: 'Overpass Mono', monospace;
+      background: var(--warm);
+      border: 1px solid var(--rule);
+      padding: 1px 6px;
+      font-size: 11.5px;
+      color: var(--ink2);
+    }
+
+    /* ── LOADER CARDS — NEWSPAPER COLUMNS ── */
+    .loader-columns {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+      border: 1px solid var(--rule);
+      margin: 20px 0;
+    }
+    @media (max-width:700px) { .loader-columns { grid-template-columns: 1fr; } }
+    .loader-col {
+      padding: 20px;
+      border-right: 1px solid var(--rule);
+    }
+    .loader-col:last-child { border-right: none; }
+    .lc-head {
+      display: flex; align-items: flex-start; gap: 10px;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--ink);
+    }
+    .lc-num {
+      font-family: 'DM Serif Display', serif;
+      font-size: 2rem;
+      color: var(--rule2);
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .lc-name {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      line-height: 1.3;
+    }
+    .lc-class {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .lc-body { font-size: 12px; color: var(--muted); line-height: 1.7; margin-bottom: 12px; }
+    .lc-tag {
+      font-size: 9.5px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      border: 1px solid;
+      padding: 2px 8px;
+      display: inline-block;
+    }
+
+    .lc-text { background: var(--text-bg); }
+    .lc-text .lc-name { color: var(--text-c); }
+    .lc-text .lc-tag  { border-color: rgba(26,74,58,0.3); color: var(--text-c); }
+
+    .lc-pdf  { background: var(--pdf-bg); }
+    .lc-pdf  .lc-name { color: var(--pdf-c); }
+    .lc-pdf  .lc-tag  { border-color: rgba(74,26,26,0.3); color: var(--pdf-c); }
+
+    .lc-csv  { background: var(--csv-bg); }
+    .lc-csv  .lc-name { color: var(--csv-c); }
+    .lc-csv  .lc-tag  { border-color: rgba(26,58,74,0.3); color: var(--csv-c); }
+
+    .lc-web  { background: var(--web-bg); }
+    .lc-web  .lc-name { color: var(--web-c); }
+    .lc-web  .lc-tag  { border-color: rgba(42,26,74,0.3); color: var(--web-c); }
+
+    .lc-yt   { background: var(--yt-bg); }
+    .lc-yt   .lc-name { color: var(--yt-c); }
+    .lc-yt   .lc-tag  { border-color: rgba(74,42,26,0.3); color: var(--yt-c); }
+
+    /* ── SOURCE GRID ── */
+    .source-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 18px 0;
+    }
+    @media (max-width:600px) { .source-grid { grid-template-columns: 1fr; } }
+    .sg-card {
+      border: 1px solid var(--rule);
+      padding: 18px;
+      background: var(--paper);
+    }
+    .sg-head {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.05rem;
+      color: var(--ink);
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--rule);
+    }
+    .sg-card p { font-size: 12px; color: var(--muted); line-height: 1.7; margin-bottom: 10px; }
+    .sg-install {
+      font-size: 10.5px;
+      background: var(--warm);
+      border: 1px solid var(--rule);
+      padding: 5px 10px;
+      color: var(--muted);
+      display: block;
+    }
+
+    /* ── DOCUMENT ANATOMY ── */
+    .doc-anatomy {
+      border: 1px solid var(--rule);
+      background: var(--paper);
+      padding: 24px;
+      margin: 18px 0;
+    }
+    .doc-field {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px dotted var(--rule);
+      align-items: start;
+    }
+    .doc-field:last-child { border-bottom: none; }
+    .df-name {
+      font-weight: 700;
+      font-size: 11.5px;
+      color: var(--ink);
+    }
+    .df-type {
+      font-size: 10px;
+      color: var(--muted2);
+      display: block;
+    }
+    .df-desc { font-size: 12.5px; color: var(--muted); }
+    .df-example {
+      margin-top: 5px;
+      font-size: 11px;
+      background: var(--warm);
+      border: 1px solid var(--rule);
+      padding: 5px 10px;
+      color: var(--ink2);
+    }
+
+    /* ── CUSTOM LOADER STEPS ── */
+    .steps {
+      counter-reset: steps;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      border: 1px solid var(--rule);
+      margin: 18px 0;
+    }
+    .step {
+      counter-increment: steps;
+      display: grid;
+      grid-template-columns: 60px 1fr;
+      border-bottom: 1px solid var(--rule);
+    }
+    .step:last-child { border-bottom: none; }
+    .step-num {
+      background: var(--ink);
+      color: var(--cream);
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.8rem;
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px 0;
+    }
+    .step-body {
+      padding: 16px 20px;
+      background: var(--paper);
+    }
+    .step-body h4 {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .step-body p { font-size: 12px; color: var(--muted); }
+
+    /* ── COMPARISON TABLE ── */
+    .table-wrap { overflow-x: auto; margin: 18px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 500px; }
+    thead tr { background: var(--ink); }
+    th { color: var(--cream); font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; font-size: 9.5px; padding: 10px 14px; text-align: left; }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--rule); color: var(--muted); }
+    tr:hover td { background: var(--warm); }
+    tr:last-child td { border-bottom: none; }
+    td:first-child { color: var(--ink2); font-weight: 600; font-size: 11.5px; }
+    .td-g { color: var(--green) !important; }
+    .td-r { color: var(--red)   !important; }
+    .td-a { color: var(--amber) !important; }
+
+    footer {
+      background: var(--ink);
+      color: var(--muted);
+      text-align: center;
+      padding: 28px 40px;
+      font-size: 10px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      border-top: 4px double var(--ink);
+    }
+  </style>
+</head>
+<body>
+
+<div class="masthead">The LangChain Mastery Gazette &nbsp;·&nbsp; Phase 4, Section 4.1 &nbsp;·&nbsp; February 2026</div>
+
+<nav>
+  <span class="nav-vol">Vol. IV · No. 1</span>
+  <a href="#loaders">Core Loaders</a>
+  <a href="#sources">Databases & APIs</a>
+  <a href="#cloud">Cloud Storage</a>
+  <a href="#custom">Custom Loaders</a>
+  <a href="#ref">Reference</a>
+</nav>
+
+<!-- HERO — NEWSPAPER FRONT PAGE -->
+<div class="hero">
+  <div class="hero-dateline">Phase 4, Section 4.1 &nbsp;·&nbsp; Document Loading &nbsp;·&nbsp; LangChain v0.3+</div>
+  <div class="hero-body">
+    <div class="hero-left">
+      <div class="hero-kicker">Loading Data</div>
+      <h1>Every<br/>Source<br/><em>Becomes</em><br/>a Doc.</h1>
+      <div class="hero-byline">By LangChain Mastery Series &nbsp;·&nbsp; Reading time: 20 min</div>
+      <p class="hero-lede">
+        LangChain's document loaders are the ingestion layer of every RAG pipeline. They normalize wildly different data sources — PDFs, websites, spreadsheets, YouTube transcripts, SQL databases, S3 buckets — into a single universal format: a list of <code>Document</code> objects, each with <code>page_content</code> and <code>metadata</code>.
+      </p>
+    </div>
+    <div class="hero-divider"></div>
+    <div class="hero-right">
+      <div class="hero-index-head">In This Section</div>
+      <ul class="hero-toc">
+        <li><a href="#loaders">TextLoader, PyPDFLoader, CSVLoader, WebBaseLoader, YoutubeLoader</a><span class="page-num">§1</span></li>
+        <li><a href="#sources">Loading from databases, APIs, and structured sources</a><span class="page-num">§2</span></li>
+        <li><a href="#cloud">Cloud storage — S3, GCS, Azure Blob</a><span class="page-num">§3</span></li>
+        <li><a href="#custom">Building custom document loaders</a><span class="page-num">§4</span></li>
+        <li><a href="#ref">Loader comparison & quick reference</a><span class="page-num">§5</span></li>
+      </ul>
+      <div class="pull-quote">
+        "A Document is the atomic unit of knowledge in LangChain. Everything that enters a RAG pipeline must become one first."
+      </div>
+      <div class="box bx-ink">
+        <span class="box-label">The Document Object — anatomy</span>
+        Every loader returns <code>list[Document]</code>. Each Document has exactly two fields: <code>page_content</code> (the text) and <code>metadata</code> (a dict with source, page number, URL, etc.). This uniform contract is why loaders are interchangeable.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- 01 — DOCUMENT ANATOMY                             -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="section-rule"></div>
+<section>
+  <div class="sec-kicker">Foundation</div>
+  <div class="sec-title">The Document Object</div>
+  <p class="sec-deck">Before touching any loader, understand what they all produce. Every loader in LangChain — no matter the source — outputs <code>list[Document]</code>.</p>
+
+  <div class="doc-anatomy">
+    <div style="font-size:9.5px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:16px;">Document object — field reference</div>
+    <div class="doc-field">
+      <div>
+        <span class="df-name">page_content</span>
+        <span class="df-type">str</span>
+      </div>
+      <div>
+        <span class="df-desc">The raw text content extracted from the source. This is what gets embedded into vectors and passed to the LLM as context.</span>
+        <div class="df-example">"Section 3: Revenue grew 24% YoY driven by..."</div>
+      </div>
+    </div>
+    <div class="doc-field">
+      <div>
+        <span class="df-name">metadata</span>
+        <span class="df-type">dict[str, Any]</span>
+      </div>
+      <div>
+        <span class="df-desc">Structured information about the document's origin. Used for filtering, citations, and debugging. Each loader populates different keys.</span>
+        <div class="df-example">{"source": "report.pdf", "page": 3, "author": "Jane"}</div>
+      </div>
+    </div>
+  </div>
+
+<div class="code-head">
+  <span>Document object — usage</span>
+</div>
+<pre>
+<span class="kw">from</span> langchain_core.documents <span class="kw">import</span> <span class="cls">Document</span>
+
+<span class="cm"># Every loader returns this structure</span>
+doc = <span class="cls">Document</span>(
+    page_content=<span class="str">"LangChain makes building LLM apps easier."</span>,
+    metadata={<span class="str">"source"</span>: <span class="str">"intro.txt"</span>, <span class="str">"page"</span>: <span class="num">1</span>}
+)
+
+<span class="fn">print</span>(doc.page_content)        <span class="cm"># the text</span>
+<span class="fn">print</span>(doc.metadata[<span class="str">"source"</span>])  <span class="cm"># "intro.txt"</span>
+
+<span class="cm"># All loaders output list[Document]</span>
+<span class="cm"># docs[0].page_content, docs[0].metadata — always the same shape</span>
+</pre>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- 02 — CORE LOADERS                                 -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="section-rule" id="loaders"></div>
+<section>
+  <div class="sec-kicker">Section 1 — Core Loaders</div>
+  <div class="sec-title">TextLoader · PyPDFLoader · CSVLoader · WebBaseLoader · YoutubeLoader</div>
+  <p class="sec-deck">The five loaders you'll reach for in 80% of projects. Each one normalizes a different source format into the universal Document contract.</p>
+
+  <div class="loader-columns">
+    <div class="loader-col lc-text">
+      <div class="lc-head">
+        <div class="lc-num">01</div>
+        <div>
+          <div class="lc-name">TextLoader</div>
+          <div class="lc-class">langchain_community.document_loaders</div>
+        </div>
+      </div>
+      <p class="lc-body">The simplest loader. Reads a plain text file and returns it as a single Document. One file = one Document. Handles encoding issues.</p>
+      <span class="lc-tag">Plain text / Markdown</span>
+    </div>
+    <div class="loader-col lc-pdf">
+      <div class="lc-head">
+        <div class="lc-num">02</div>
+        <div>
+          <div class="lc-name">PyPDFLoader</div>
+          <div class="lc-class">langchain_community.document_loaders</div>
+        </div>
+      </div>
+      <p class="lc-body">Extracts text from PDF files page by page. One page = one Document. Metadata includes page number. Handles multi-page PDFs automatically.</p>
+      <span class="lc-tag">PDF files</span>
+    </div>
+    <div class="loader-col lc-csv">
+      <div class="lc-head">
+        <div class="lc-num">03</div>
+        <div>
+          <div class="lc-name">CSVLoader</div>
+          <div class="lc-class">langchain_community.document_loaders</div>
+        </div>
+      </div>
+      <p class="lc-body">Converts CSV rows into Documents. One row = one Document. Column headers become metadata keys. Configurable source column for citations.</p>
+      <span class="lc-tag">CSV / Spreadsheet data</span>
+    </div>
+    <div class="loader-col lc-web">
+      <div class="lc-head">
+        <div class="lc-num">04</div>
+        <div>
+          <div class="lc-name">WebBaseLoader</div>
+          <div class="lc-class">langchain_community.document_loaders</div>
+        </div>
+      </div>
+      <p class="lc-body">Fetches and parses web pages. Uses BeautifulSoup to strip HTML, extract main content. Accepts a list of URLs for batch loading.</p>
+      <span class="lc-tag">Websites / Web scraping</span>
+    </div>
+    <div class="loader-col lc-yt">
+      <div class="lc-head">
+        <div class="lc-num">05</div>
+        <div>
+          <div class="lc-name">YoutubeLoader</div>
+          <div class="lc-class">langchain_community.document_loaders</div>
+        </div>
+      </div>
+      <p class="lc-body">Fetches auto-generated or manual transcripts from YouTube videos. Returns transcript chunks as Documents. Supports language selection.</p>
+      <span class="lc-tag">YouTube transcripts</span>
+    </div>
+  </div>
+
+<div class="code-head">
+  <span>01 — TextLoader</span>
+  <span>pip install langchain-community</span>
+</div>
+<pre>
+<span class="kw">from</span> langchain_community.document_loaders <span class="kw">import</span> <span class="cls">TextLoader</span>
+
+loader = <span class="cls">TextLoader</span>(<span class="str">"./docs/readme.txt"</span>, encoding=<span class="str">"utf-8"</span>)
+docs = loader.load()
+
+<span class="fn">print</span>(<span class="fn">len</span>(docs))             <span class="cm"># 1 — entire file is one Document</span>
+<span class="fn">print</span>(docs[<span class="num">0</span>].page_content[:100])
+<span class="fn">print</span>(docs[<span class="num">0</span>].metadata)     <span class="cm"># {"source": "./docs/readme.txt"}</span>
+
+<span class="cm"># Load multiple files with DirectoryLoader</span>
+<span class="kw">from</span> langchain_community.document_loaders <span class="kw">import</span> <span class="cls">DirectoryLoader</span>
+
+loader = <span class="cls">DirectoryLoader</span>(
+    <span class="str">"./docs/"</span>,
+    glob=<span class="str">"**/*.txt"</span>,          <span class="cm"># match all .txt files recursively</span>
+    loader_cls=<span class="cls">TextLoader</span>,
+    show_progress=<span class="op">True</span>,
+)
+all_docs = loader.load()    <span class="cm"># list[Document] — one per file</span>
+</pre>
+
+<div class="code-head">
+  <span>02 — PyPDFLoader</span>
+  <span>pip install pypdf</span>
+</div>
+<pre>
+<span class="kw">from</span> langchain_community.document_loaders <span class="kw">import</span> <span class="cls">PyPDFLoader</span>
+
+loader = <span class="cls">PyPDFLoader</span>(<span class="str">"./reports/annual_report.pdf"</span>)
+docs = loader.load()
+
+<span class="fn">print</span>(<span class="fn">len</span>(docs))             <span class="cm"># one Document per page</span>
+<span class="fn">print</span>(docs[<span class="num">0</span>].metadata)
+<span class="cm"># {"source": "./reports/annual_report.pdf", "page": 0}</span>
+
+<span class="cm"># Lazy loading — streams pages, good for huge PDFs</span>
+<span class="kw">for</span> doc <span class="kw">in</span> loader.lazy_load():
+    <span class="fn">print</span>(doc.metadata[<span class="str">"page"</span>], doc.page_content[:50])
+
+<span class="cm"># Load + split in one step (common pattern)</span>
+<span class="kw">from</span> langchain.text_splitter <span class="kw">import</span> <span class="cls">RecursiveCharacterTextSplitter</span>
+
+splitter = <span class="cls">RecursiveCharacterTextSplitter</span>(chunk_size=<span class="num">1000</span>, chunk_overlap=<span class="num">200</span>)
+chunks = loader.load_and_split(text_splitter=splitter)
+</pre>
+
+<div class="code-head">
+  <span>03 — CSVLoader</span>
+</div>
+<pre>
+<span class="kw">from</span> langchain_community.document_loaders <span class="kw">import</span> <span class="cls">CSVLoader</span>
+
+<span class="cm"># Each row becomes a Document</span>
+loader = <span class="cls">CSVLoader</span>(
+    file_path=<span class="str">"./data/products.csv"</span>,
+    source_column=<span class="str">"product_id"</span>,    <span class="cm"># used as metadata["source"]</span>
+    encoding=<span class="str">"utf-8"</span>,
+)
+docs = loader.load()
+
+<span class="cm"># Each doc looks like:</span>
+<span class="cm"># page_content = "product_id: P001\nname: Widget\nprice: 9.99\n..."</span>
+<span class="cm"># metadata     = {"source": "P001", "row": 0}</span>
+
+<span class="cm"># Select specific columns only</span>
+loader = <span class="cls">CSVLoader</span>(
+    file_path=<span class="str">"./data/products.csv"</span>,
+    csv_args={<span class="str">"fieldnames"</span>: [<span class="str">"name"</span>, <span class="str">"description"</span>]},
+)
+</pre>
+
+<div class="code-head">
+  <span>04 — WebBaseLoader</span>
+  <span>pip install beautifulsoup4</span>
+</div>
+<pre>
+<span class="kw">from</span> langchain_community.document_loaders <span class="kw">import</span> <span class="cls">WebBaseLoader</span>
+<span class="kw">import</span> bs4
+
+<span class="cm"># Single URL</span>
+loader = <span class="cls">WebBaseLoader</span>(<span class="str">"https://docs.python.org/3/tutorial/"</span>)
+docs = loader.load()
+
+<span class="cm"># Multiple URLs — loaded in parallel</span>
+urls = [
+    <span class="str">"https://docs.python.org/3/tutorial/introduction.html"</span>,
+    <span class="str">"https://docs.python.org/3/tutorial/controlflow.html"</span>,
+]
+loader = <span class="cls">WebBaseLoader</span>(urls)
+docs = loader.load()   <span class="cm"># one Document per URL</span>
+
+<span class="cm"># Extract only specific HTML elements (reduces noise)</span>
+loader = <span class="cls">WebBaseLoader</span>(
+    web_paths=[<span class="str">"https://example.com/article"</span>],
+    bs_kwargs={
+        <span class="str">"parse_only"</span>: bs4.SoupStrainer(
+            class_=(<span class="str">"article-content"</span>, <span class="str">"post-body"</span>)
+        )
+    }
+)
+docs = loader.load()
+<span class="cm"># metadata: {"source": "https://...", "title": "...", "description": "..."}</span>
+</pre>
+
+<div class="code-head">
+  <span>05 — YoutubeLoader</span>
+  <span>pip install youtube-transcript-api</span>
+</div>
+<pre>
+<span class="kw">from</span> langchain_community.document_loaders <span class="kw">import</span> <span class="cls">YoutubeLoader</span>
+
+<span class="cm"># Load from video URL or ID</span>
+loader = <span class="cls">YoutubeLoader</span>.from_youtube_url(
+    <span class="str">"https://www.youtube.com/watch?v=dQw4w9WgXcQ"</span>,
+    add_video_info=<span class="op">True</span>,    <span class="cm"># include title, author, views in metadata</span>
+    language=[<span class="str">"en"</span>, <span class="str">"ar"</span>],  <span class="cm"># preferred transcript language</span>
+)
+docs = loader.load()
+
+<span class="cm"># Returns full transcript as one Document</span>
+<span class="cm"># metadata: {"source": "...", "title": "...", "author": "...", "length": 213}</span>
+<span class="fn">print</span>(docs[<span class="num">0</span>].metadata[<span class="str">"title"</span>])
+
+<span class="cm"># Load from just the video ID</span>
+loader = <span class="cls">YoutubeLoader</span>(video_id=<span class="str">"dQw4w9WgXcQ"</span>)
+</pre>
+
+  <div class="box bx-g">
+    <span class="box-label">Two loading methods — always available</span>
+    <code>.load()</code> loads everything into memory at once and returns <code>list[Document]</code>. Use for small-to-medium sources. <code>.lazy_load()</code> returns a generator that yields one Document at a time — essential for large PDFs, huge directories, or any source where you don't want to hold everything in RAM simultaneously.
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- 03 — DATABASES, APIs, CLOUD                       -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="section-rule" id="sources"></div>
+<section>
+  <div class="sec-kicker">Section 2 — Structured Sources</div>
+  <div class="sec-title">Databases, APIs & Cloud Storage</div>
+  <p class="sec-deck">Beyond files and URLs — loading data from SQL databases, REST APIs, and cloud object storage. All return the same <code>list[Document]</code>.</p>
+
+  <div class="source-grid">
+    <div class="sg-card">
+      <div class="sg-head">🗄 SQL Databases</div>
+      <p>Load rows from any SQL database (PostgreSQL, MySQL, SQLite) as Documents. Uses SQLAlchemy under the hood — works with any dialect.</p>
+      <code class="sg-install">pip install langchain-community sqlalchemy</code>
+    </div>
+    <div class="sg-card">
+      <div class="sg-head">🔌 REST APIs</div>
+      <p>Fetch JSON from any REST API endpoint and convert to Documents. Use the generic loader or build a custom one for your specific API shape.</p>
+      <code class="sg-install">pip install requests</code>
+    </div>
+    <div class="sg-card">
+      <div class="sg-head">☁️ AWS S3</div>
+      <p>Load files directly from S3 buckets without downloading locally. Supports single files or entire directory prefixes.</p>
+      <code class="sg-install">pip install langchain-community boto3</code>
+    </div>
+    <div class="sg-card">
+      <div class="sg-head">🗂 Google Cloud Storage</div>
+      <p>Load from GCS buckets. Authentication via service account or application default credentials.</p>
+      <code class="sg-install">pip install langchain-community google-cloud-storage</code>
+    </div>
+  </div>
+
+<div class="code-head">
+  <span>SQL Database Loader</span>
+</div>
+<pre>
+<span class="kw">from</span> langchain_community.document_loaders <span class="kw">import</span> <span class="cls">SQLDatabaseLoader</span>
+<span class="kw">from</span> sqlalchemy <span class="kw">import</span> <span class="fn">create_engine</span>
+
+engine = <span class="fn">create_engine</span>(<span class="str">"postgresql://user:pass@localhost/mydb"</span>)
+
+<span class="cm"># Load rows as Documents via a SQL query</span>
+loader = <span class="cls">SQLDatabaseLoader</span>(
+    query=<span class="str">"SELECT title, body, author, created_at FROM articles WHERE published = true"</span>,
+    db=engine,
+    page_content_columns=[<span class="str">"title"</span>, <span class="str">"body"</span>],   <span class="cm"># these become page_content</span>
+    metadata_columns=[<span class="str">"author"</span>, <span class="str">"created_at"</span>], <span class="cm"># these go into metadata</span>
+)
+docs = loader.load()
+<span class="cm"># page_content = "title: How to use LangChain\nbody: LangChain is..."</span>
+<span class="cm"># metadata     = {"author": "Jane", "created_at": "2025-01-15"}</span>
+</pre>
+
+<div class="code-head">
+  <span>REST API — generic approach with RunnableLambda</span>
+</div>
+<pre>
+<span class="kw">import</span> requests
+<span class="kw">from</span> langchain_core.documents <span class="kw">import</span> <span class="cls">Document</span>
+
+<span class="cm"># Fetch from any JSON API → convert to Documents manually</span>
+<span class="kw">def</span> <span class="fn">load_from_api</span>(endpoint: <span class="fn">str</span>, headers: <span class="fn">dict</span> = {}) -> <span class="fn">list</span>[<span class="cls">Document</span>]:
+    response = requests.get(endpoint, headers=headers)
+    response.raise_for_status()
+    items = response.json()   <span class="cm"># assumes list of dicts</span>
+
+    <span class="kw">return</span> [
+        <span class="cls">Document</span>(
+            page_content=item.get(<span class="str">"content"</span>, <span class="fn">str</span>(item)),
+            metadata={
+                <span class="str">"source"</span>: endpoint,
+                <span class="str">"id"</span>:     item.get(<span class="str">"id"</span>),
+                <span class="str">"title"</span>:  item.get(<span class="str">"title"</span>),
+            }
+        )
+        <span class="kw">for</span> item <span class="kw">in</span> items
+    ]
+
+docs = <span class="fn">load_from_api</span>(
+    <span class="str">"https://api.example.com/articles"</span>,
+    headers={<span class="str">"Authorization"</span>: <span class="str">"Bearer YOUR_TOKEN"</span>}
+)
+</pre>
+
+<div class="code-head">
+  <span>Cloud Storage — S3 and GCS</span>
+</div>
+<pre>
+<span class="cm"># ── AWS S3 ─────────────────────────────────────────────</span>
+<span class="kw">from</span> langchain_community.document_loaders <span class="kw">import</span> <span class="cls">S3FileLoader</span>, <span class="cls">S3DirectoryLoader</span>
+
+<span class="cm"># Single file from S3</span>
+loader = <span class="cls">S3FileLoader</span>(
+    bucket=<span class="str">"my-knowledge-base"</span>,
+    key=<span class="str">"docs/manual.pdf"</span>,
+)
+docs = loader.load()
+
+<span class="cm"># Entire S3 prefix (directory)</span>
+loader = <span class="cls">S3DirectoryLoader</span>(
+    bucket=<span class="str">"my-knowledge-base"</span>,
+    prefix=<span class="str">"docs/"</span>,            <span class="cm"># loads all files under this prefix</span>
+)
+docs = loader.load()
+
+<span class="cm"># ── Google Cloud Storage ────────────────────────────────</span>
+<span class="kw">from</span> langchain_community.document_loaders <span class="kw">import</span> <span class="cls">GCSFileLoader</span>
+
+loader = <span class="cls">GCSFileLoader</span>(
+    project_name=<span class="str">"my-gcp-project"</span>,
+    bucket=<span class="str">"my-bucket"</span>,
+    blob=<span class="str">"reports/q4_2025.pdf"</span>,
+)
+docs = loader.load()
+</pre>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- 04 — CUSTOM LOADERS                               -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="section-rule" id="custom"></div>
+<section>
+  <div class="sec-kicker">Section 3 — Building Your Own</div>
+  <div class="sec-title">Custom Document Loaders</div>
+  <p class="sec-deck">When no built-in loader fits your source — proprietary formats, internal APIs, unusual structures — you build your own by subclassing <code>BaseLoader</code>.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>Subclass BaseLoader</h4>
+        <p>Import <code>BaseLoader</code> from <code>langchain_core.document_loaders</code>. This gives your loader the standard interface including <code>.load()</code>, <code>.lazy_load()</code>, and <code>.load_and_split()</code> for free.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>Implement lazy_load()</h4>
+        <p>The only method you must implement. It must be a generator that <code>yield</code>s <code>Document</code> objects one at a time. LangChain derives <code>.load()</code> from this automatically. Generators enable memory-efficient streaming.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>Populate page_content and metadata</h4>
+        <p>Extract the text your LLM will read into <code>page_content</code>. Put everything useful for filtering, citations, and debugging into <code>metadata</code>. Always include a <code>"source"</code> key in metadata.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h4>Handle errors gracefully</h4>
+        <p>Wrap I/O in try/except. Log failures but don't let one bad document crash the whole pipeline. Consider yielding a Document with empty content and an error in metadata rather than raising.</p>
+      </div>
+    </div>
+  </div>
+
+<div class="code-head">
+  <span>Custom Loader — Notion API example</span>
+</div>
+<pre>
+<span class="kw">from</span> langchain_core.document_loaders <span class="kw">import</span> <span class="cls">BaseLoader</span>
+<span class="kw">from</span> langchain_core.documents <span class="kw">import</span> <span class="cls">Document</span>
+<span class="kw">from</span> typing <span class="kw">import</span> <span class="cls">Iterator</span>
+<span class="kw">import</span> requests
+
+<span class="kw">class</span> <span class="cls">NotionPageLoader</span>(<span class="cls">BaseLoader</span>):
+    <span class="str">"""Load pages from a Notion database via the Notion API."""</span>
+
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, database_id: <span class="fn">str</span>, notion_token: <span class="fn">str</span>):
+        self.database_id = database_id
+        self.headers = {
+            <span class="str">"Authorization"</span>:   <span class="str">f"Bearer {notion_token}"</span>,
+            <span class="str">"Notion-Version"</span>:  <span class="str">"2022-06-28"</span>,
+            <span class="str">"Content-Type"</span>:    <span class="str">"application/json"</span>,
+        }
+
+    <span class="kw">def</span> <span class="fn">lazy_load</span>(self) -> <span class="cls">Iterator</span>[<span class="cls">Document</span>]:
+        <span class="str">"""Generator — yields one Document per Notion page."""</span>
+        url = <span class="str">f"https://api.notion.com/v1/databases/{self.database_id}/query"</span>
+        has_more, cursor = <span class="op">True</span>, <span class="op">None</span>
+
+        <span class="kw">while</span> has_more:
+            body = {<span class="str">"start_cursor"</span>: cursor} <span class="kw">if</span> cursor <span class="kw">else</span> {}
+            resp = requests.post(url, headers=self.headers, json=body)
+            resp.raise_for_status()
+            data = resp.json()
+
+            <span class="kw">for</span> page <span class="kw">in</span> data[<span class="str">"results"</span>]:
+                <span class="cm"># Extract title from Notion page properties</span>
+                title = (
+                    page[<span class="str">"properties"</span>]
+                    .get(<span class="str">"Name"</span>, {})
+                    .get(<span class="str">"title"</span>, [{}])[<span class="num">0</span>]
+                    .get(<span class="str">"plain_text"</span>, <span class="str">"Untitled"</span>)
+                )
+
+                <span class="cm"># page_content = the text the LLM will read</span>
+                content = <span class="str">f"Title: {title}\n\n"</span>
+                content += self.<span class="fn">_extract_blocks</span>(page[<span class="str">"id"</span>])
+
+                <span class="kw">yield</span> <span class="cls">Document</span>(
+                    page_content=content,
+                    metadata={
+                        <span class="str">"source"</span>:       <span class="str">f"notion:{page['id']}"</span>,
+                        <span class="str">"title"</span>:        title,
+                        <span class="str">"page_id"</span>:      page[<span class="str">"id"</span>],
+                        <span class="str">"created_time"</span>: page[<span class="str">"created_time"</span>],
+                        <span class="str">"last_edited"</span>:  page[<span class="str">"last_edited_time"</span>],
+                        <span class="str">"url"</span>:          page[<span class="str">"url"</span>],
+                    }
+                )
+
+            has_more = data.get(<span class="str">"has_more"</span>, <span class="op">False</span>)
+            cursor   = data.get(<span class="str">"next_cursor"</span>)
+
+    <span class="kw">def</span> <span class="fn">_extract_blocks</span>(self, page_id: <span class="fn">str</span>) -> <span class="fn">str</span>:
+        <span class="str">"""Fetch block content (paragraphs, bullets, etc.)."""</span>
+        url = <span class="str">f"https://api.notion.com/v1/blocks/{page_id}/children"</span>
+        resp = requests.get(url, headers=self.headers)
+        text_parts = []
+        <span class="kw">for</span> block <span class="kw">in</span> resp.json().get(<span class="str">"results"</span>, []):
+            <span class="kw">for</span> rt <span class="kw">in</span> block.get(block[<span class="str">"type"</span>], {}).get(<span class="str">"rich_text"</span>, []):
+                text_parts.append(rt.get(<span class="str">"plain_text"</span>, <span class="str">""</span>))
+        <span class="kw">return</span> <span class="str">"\n"</span>.join(text_parts)
+
+
+<span class="cm"># Use it exactly like any built-in loader</span>
+loader = <span class="cls">NotionPageLoader</span>(
+    database_id=<span class="str">"abc123..."</span>,
+    notion_token=<span class="str">"secret_..."</span>
+)
+docs = loader.load()                   <span class="cm"># all pages at once</span>
+<span class="kw">for</span> doc <span class="kw">in</span> loader.lazy_load():         <span class="cm"># one at a time</span>
+    <span class="fn">print</span>(doc.metadata[<span class="str">"title"</span>])
+</pre>
+
+<div class="code-head">
+  <span>Minimal custom loader — 10 lines</span>
+</div>
+<pre>
+<span class="cm"># The absolute minimum viable custom loader</span>
+<span class="kw">class</span> <span class="cls">SimpleJSONLoader</span>(<span class="cls">BaseLoader</span>):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, file_path: <span class="fn">str</span>, content_key: <span class="fn">str</span>):
+        self.file_path = file_path
+        self.content_key = content_key
+
+    <span class="kw">def</span> <span class="fn">lazy_load</span>(self) -> <span class="cls">Iterator</span>[<span class="cls">Document</span>]:
+        <span class="kw">import</span> json
+        <span class="kw">with</span> <span class="fn">open</span>(self.file_path) <span class="kw">as</span> f:
+            data = json.load(f)
+        <span class="kw">for</span> i, item <span class="kw">in</span> <span class="fn">enumerate</span>(data):
+            <span class="kw">yield</span> <span class="cls">Document</span>(
+                page_content=item[self.content_key],
+                metadata={<span class="str">"source"</span>: self.file_path, <span class="str">"index"</span>: i, **item}
+            )
+</pre>
+
+  <div class="box bx-a">
+    <span class="box-label">Always implement lazy_load, not load</span>
+    <code>BaseLoader.load()</code> is already implemented — it just calls <code>list(self.lazy_load())</code>. So you only ever need to implement <code>lazy_load()</code>. This gives your custom loader streaming for free, which matters when loading thousands of rows from a database or paginated API.
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- 05 — REFERENCE TABLE                              -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="section-rule" id="ref"></div>
+<section>
+  <div class="sec-kicker">Section 4 — Quick Reference</div>
+  <div class="sec-title">Loader Comparison</div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Loader</th>
+          <th>Source</th>
+          <th>Docs per Unit</th>
+          <th>Key Metadata</th>
+          <th>Extra Install</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>TextLoader</td>
+          <td>Plain text / Markdown files</td>
+          <td>1 per file</td>
+          <td>source</td>
+          <td class="td-g">None</td>
+        </tr>
+        <tr>
+          <td>DirectoryLoader</td>
+          <td>Folder of files (any type)</td>
+          <td>1 per file</td>
+          <td>source</td>
+          <td class="td-g">None</td>
+        </tr>
+        <tr>
+          <td>PyPDFLoader</td>
+          <td>PDF files</td>
+          <td>1 per page</td>
+          <td>source, page</td>
+          <td class="td-a">pypdf</td>
+        </tr>
+        <tr>
+          <td>CSVLoader</td>
+          <td>CSV files</td>
+          <td>1 per row</td>
+          <td>source, row</td>
+          <td class="td-g">None</td>
+        </tr>
+        <tr>
+          <td>WebBaseLoader</td>
+          <td>Web pages (HTML)</td>
+          <td>1 per URL</td>
+          <td>source, title, description</td>
+          <td class="td-a">beautifulsoup4</td>
+        </tr>
+        <tr>
+          <td>YoutubeLoader</td>
+          <td>YouTube transcripts</td>
+          <td>1 per video</td>
+          <td>source, title, author, length</td>
+          <td class="td-a">youtube-transcript-api</td>
+        </tr>
+        <tr>
+          <td>SQLDatabaseLoader</td>
+          <td>SQL databases</td>
+          <td>1 per row</td>
+          <td>custom via query</td>
+          <td class="td-a">sqlalchemy</td>
+        </tr>
+        <tr>
+          <td>S3FileLoader</td>
+          <td>AWS S3</td>
+          <td>1 per file</td>
+          <td>source (s3 path)</td>
+          <td class="td-a">boto3</td>
+        </tr>
+        <tr>
+          <td>GCSFileLoader</td>
+          <td>Google Cloud Storage</td>
+          <td>1 per file</td>
+          <td>source</td>
+          <td class="td-a">google-cloud-storage</td>
+        </tr>
+        <tr>
+          <td>Custom (BaseLoader)</td>
+          <td>Anything</td>
+          <td>You decide</td>
+          <td>You define</td>
+          <td class="td-g">Your deps</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="box bx-ink" style="margin-top:24px;">
+    <span class="box-label">The only rule that matters</span>
+    Whatever source you're loading from, the output must be <code>list[Document]</code>. If you understand that every loader — built-in or custom — is just a function that turns any data source into that list, you understand the entire loading layer. Everything downstream (text splitting, embedding, vector storage) operates on this uniform interface.
+  </div>
+</section>
+
+</div>
+
+<footer>
+  LangChain Mastery Gazette &nbsp;·&nbsp; Phase 4, Section 4.1 &nbsp;·&nbsp; Loading Data &nbsp;·&nbsp; February 2026 &nbsp;·&nbsp; LangChain v0.3+
+</footer>
+
+</body>
+</html>
